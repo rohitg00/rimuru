@@ -1,0 +1,29 @@
+[plugin]
+name = "teams-notifier"
+version = "0.1.0"
+author = "Example Author"
+description = "Send notifications to Microsoft Teams channels via incoming webhooks"
+homepage = "https://github.com/example/teams-notifier"
+repository = "https://github.com/example/teams-notifier"
+license = "MIT"
+plugin_type = "native"
+entry_point = "libexample_notifier.so"
+
+[capabilities.notifier]
+notification_type = "teams"
+supports_batch = true
+rate_limit = 60
+
+[[permissions]]
+name = "network"
+description = "Required to send messages to Teams webhook"
+required = true
+
+[[dependencies]]
+
+[config]
+schema = { type = "object", properties = { webhook_url = { type = "string", description = "Microsoft Teams Incoming Webhook URL" }, mention_user = { type = "string", description = "User email to mention in critical notifications" }, rate_limit_ms = { type = "integer", default = 1000 }, include_metadata = { type = "boolean", default = false } } }
+
+[config.defaults]
+rate_limit_ms = 1000
+include_metadata = false

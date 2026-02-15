@@ -1,0 +1,32 @@
+.gauge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.progress {
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.number {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.unit {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}

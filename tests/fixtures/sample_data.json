@@ -1,0 +1,268 @@
+{
+  "agents": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "agent_type": "claude_code",
+      "name": "Claude Code",
+      "version": "1.0.0",
+      "is_active": true
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "agent_type": "codex",
+      "name": "OpenAI Codex",
+      "version": "1.0.0",
+      "is_active": true
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "agent_type": "copilot",
+      "name": "GitHub Copilot",
+      "version": "1.0.0",
+      "is_active": true
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000004",
+      "agent_type": "cursor",
+      "name": "Cursor",
+      "version": "0.45.0",
+      "is_active": true
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000005",
+      "agent_type": "goose",
+      "name": "Goose",
+      "version": "1.0.0",
+      "is_active": false
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000006",
+      "agent_type": "opencode",
+      "name": "OpenCode",
+      "version": "0.1.0",
+      "is_active": true
+    }
+  ],
+  "sessions": [
+    {
+      "id": "s0000000-0000-0000-0000-000000000001",
+      "agent_id": "a0000000-0000-0000-0000-000000000001",
+      "status": "active",
+      "project_path": "/projects/rimuru"
+    },
+    {
+      "id": "s0000000-0000-0000-0000-000000000002",
+      "agent_id": "a0000000-0000-0000-0000-000000000001",
+      "status": "completed",
+      "project_path": "/projects/rimuru"
+    },
+    {
+      "id": "s0000000-0000-0000-0000-000000000003",
+      "agent_id": "a0000000-0000-0000-0000-000000000002",
+      "status": "completed",
+      "project_path": "/projects/other"
+    },
+    {
+      "id": "s0000000-0000-0000-0000-000000000004",
+      "agent_id": "a0000000-0000-0000-0000-000000000003",
+      "status": "active",
+      "project_path": "/projects/frontend"
+    },
+    {
+      "id": "s0000000-0000-0000-0000-000000000005",
+      "agent_id": "a0000000-0000-0000-0000-000000000004",
+      "status": "error",
+      "project_path": "/projects/backend"
+    }
+  ],
+  "cost_records": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "session_id": "s0000000-0000-0000-0000-000000000001",
+      "agent_id": "a0000000-0000-0000-0000-000000000001",
+      "model_name": "claude-3-opus",
+      "input_tokens": 10000,
+      "output_tokens": 5000,
+      "cost_usd": 0.525
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "session_id": "s0000000-0000-0000-0000-000000000001",
+      "agent_id": "a0000000-0000-0000-0000-000000000001",
+      "model_name": "claude-3-opus",
+      "input_tokens": 8000,
+      "output_tokens": 4000,
+      "cost_usd": 0.42
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000003",
+      "session_id": "s0000000-0000-0000-0000-000000000002",
+      "agent_id": "a0000000-0000-0000-0000-000000000001",
+      "model_name": "claude-3-sonnet",
+      "input_tokens": 15000,
+      "output_tokens": 7500,
+      "cost_usd": 0.1575
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000004",
+      "session_id": "s0000000-0000-0000-0000-000000000003",
+      "agent_id": "a0000000-0000-0000-0000-000000000002",
+      "model_name": "gpt-4",
+      "input_tokens": 5000,
+      "output_tokens": 2500,
+      "cost_usd": 0.25
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000005",
+      "session_id": "s0000000-0000-0000-0000-000000000004",
+      "agent_id": "a0000000-0000-0000-0000-000000000003",
+      "model_name": "gpt-4-turbo",
+      "input_tokens": 3000,
+      "output_tokens": 1500,
+      "cost_usd": 0.075
+    }
+  ],
+  "models": [
+    {
+      "id": "m0000000-0000-0000-0000-000000000001",
+      "provider": "anthropic",
+      "name": "claude-3-opus",
+      "input_cost_per_1k": 0.015,
+      "output_cost_per_1k": 0.075,
+      "context_window": 200000,
+      "max_output_tokens": 4096,
+      "capabilities": ["text_generation", "code_completion", "vision"]
+    },
+    {
+      "id": "m0000000-0000-0000-0000-000000000002",
+      "provider": "anthropic",
+      "name": "claude-3-sonnet",
+      "input_cost_per_1k": 0.003,
+      "output_cost_per_1k": 0.015,
+      "context_window": 200000,
+      "max_output_tokens": 4096,
+      "capabilities": ["text_generation", "code_completion", "vision"]
+    },
+    {
+      "id": "m0000000-0000-0000-0000-000000000003",
+      "provider": "anthropic",
+      "name": "claude-3-haiku",
+      "input_cost_per_1k": 0.00025,
+      "output_cost_per_1k": 0.00125,
+      "context_window": 200000,
+      "max_output_tokens": 4096,
+      "capabilities": ["text_generation", "code_completion"]
+    },
+    {
+      "id": "m0000000-0000-0000-0000-000000000004",
+      "provider": "openai",
+      "name": "gpt-4",
+      "input_cost_per_1k": 0.03,
+      "output_cost_per_1k": 0.06,
+      "context_window": 128000,
+      "max_output_tokens": 4096,
+      "capabilities": ["text_generation", "code_completion", "function_calling"]
+    },
+    {
+      "id": "m0000000-0000-0000-0000-000000000005",
+      "provider": "openai",
+      "name": "gpt-4-turbo",
+      "input_cost_per_1k": 0.01,
+      "output_cost_per_1k": 0.03,
+      "context_window": 128000,
+      "max_output_tokens": 4096,
+      "capabilities": ["text_generation", "code_completion", "vision", "function_calling"]
+    },
+    {
+      "id": "m0000000-0000-0000-0000-000000000006",
+      "provider": "google",
+      "name": "gemini-pro",
+      "input_cost_per_1k": 0.00025,
+      "output_cost_per_1k": 0.0005,
+      "context_window": 32000,
+      "max_output_tokens": 8192,
+      "capabilities": ["text_generation", "code_completion"]
+    }
+  ],
+  "plugins": [
+    {
+      "id": "p0000000-0000-0000-0000-000000000001",
+      "name": "json-exporter",
+      "version": "1.0.0",
+      "author": "Rimuru Team",
+      "description": "Export data to JSON format",
+      "status": "enabled",
+      "capabilities": ["exporter"]
+    },
+    {
+      "id": "p0000000-0000-0000-0000-000000000002",
+      "name": "csv-exporter",
+      "version": "1.0.0",
+      "author": "Rimuru Team",
+      "description": "Export data to CSV format",
+      "status": "enabled",
+      "capabilities": ["exporter"]
+    },
+    {
+      "id": "p0000000-0000-0000-0000-000000000003",
+      "name": "slack-notifier",
+      "version": "1.0.0",
+      "author": "Rimuru Team",
+      "description": "Send notifications to Slack",
+      "status": "disabled",
+      "capabilities": ["notifier"]
+    },
+    {
+      "id": "p0000000-0000-0000-0000-000000000004",
+      "name": "discord-notifier",
+      "version": "1.0.0",
+      "author": "Rimuru Team",
+      "description": "Send notifications to Discord",
+      "status": "loaded",
+      "capabilities": ["notifier"]
+    },
+    {
+      "id": "p0000000-0000-0000-0000-000000000005",
+      "name": "webhook-notifier",
+      "version": "1.0.0",
+      "author": "Rimuru Team",
+      "description": "Send notifications via webhooks",
+      "status": "enabled",
+      "capabilities": ["notifier"]
+    }
+  ],
+  "hooks": [
+    {
+      "id": "h0000000-0000-0000-0000-000000000001",
+      "name": "session-start-log",
+      "hook_type": "session_start",
+      "handler_type": "session_log",
+      "enabled": true,
+      "priority": 10
+    },
+    {
+      "id": "h0000000-0000-0000-0000-000000000002",
+      "name": "session-end-log",
+      "hook_type": "session_end",
+      "handler_type": "session_log",
+      "enabled": true,
+      "priority": 10
+    },
+    {
+      "id": "h0000000-0000-0000-0000-000000000003",
+      "name": "cost-alert",
+      "hook_type": "cost_threshold",
+      "handler_type": "cost_alert",
+      "enabled": true,
+      "priority": 5
+    },
+    {
+      "id": "h0000000-0000-0000-0000-000000000004",
+      "name": "metrics-export",
+      "hook_type": "metrics_collected",
+      "handler_type": "metrics_export",
+      "enabled": false,
+      "priority": 0
+    }
+  ]
+}

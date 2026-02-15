@@ -1,0 +1,42 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.contentNoScroll {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .content {
+    padding: 12px;
+  }
+}

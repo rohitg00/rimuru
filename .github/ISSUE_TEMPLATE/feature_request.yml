@@ -1,0 +1,71 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Rimuru
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature! Please fill out the form below to help us understand your idea.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which area of Rimuru does this feature relate to?
+      options:
+        - agents
+        - cost-tracking
+        - plugins
+        - tui
+        - desktop
+        - cli
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Describe the problem or limitation you're experiencing that this feature would solve
+      placeholder: |
+        A clear and concise description of what the problem is.
+        Example: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented
+      placeholder: |
+        A clear and concise description of what you want to happen.
+        Include any specific behaviors, UI changes, or API additions you envision.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: |
+        List any workarounds you're currently using or other approaches that could solve this problem.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or mockups about the feature request
+      placeholder: |
+        - Use cases for this feature
+        - Links to related issues or discussions
+        - Screenshots or mockups
+    validations:
+      required: false

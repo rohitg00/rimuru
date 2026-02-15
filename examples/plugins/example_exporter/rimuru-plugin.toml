@@ -1,0 +1,32 @@
+[plugin]
+name = "xml-exporter"
+version = "0.1.0"
+author = "Example Author"
+description = "Export sessions and costs to XML format"
+homepage = "https://github.com/example/xml-exporter"
+repository = "https://github.com/example/xml-exporter"
+license = "MIT"
+plugin_type = "native"
+entry_point = "libexample_exporter.so"
+
+[capabilities.exporter]
+format = "xml"
+file_extension = "xml"
+supports_sessions = true
+supports_costs = true
+
+[[permissions]]
+name = "filesystem"
+description = "Required to write export files"
+required = true
+
+[[dependencies]]
+
+[config]
+schema = { type = "object", properties = { pretty_print = { type = "boolean", default = true }, include_xml_declaration = { type = "boolean", default = true }, date_format = { type = "string", default = "%Y-%m-%dT%H:%M:%SZ" }, encoding = { type = "string", enum = ["UTF-8", "UTF-16", "ISO-8859-1"], default = "UTF-8" } } }
+
+[config.defaults]
+pretty_print = true
+include_xml_declaration = true
+date_format = "%Y-%m-%dT%H:%M:%SZ"
+encoding = "UTF-8"

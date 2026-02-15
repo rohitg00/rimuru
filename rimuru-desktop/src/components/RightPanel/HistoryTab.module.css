@@ -1,0 +1,49 @@
+.container { display: flex; flex-direction: column; height: 100%; }
+.heatmapPlaceholder {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.list { flex: 1; overflow-y: auto; padding: 4px 0; scroll-behavior: smooth; }
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px 8px 24px;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  animation: slideUp var(--duration-normal);
+}
+.entry::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+}
+.entry::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+.entryHeader { display: flex; align-items: center; gap: 8px; }
+.badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.badgeAuto { background: color-mix(in srgb, var(--color-accent) 20%, transparent); color: var(--color-accent); }
+.badgeUser { background: color-mix(in srgb, var(--color-success) 20%, transparent); color: var(--color-success); }
+.message { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entryFooter { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-muted); }

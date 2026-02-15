@@ -1,0 +1,190 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Create frontend dist stub
+        run: mkdir -p rimuru-desktop/dist && echo '<html></html>' > rimuru-desktop/dist/index.html
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run unit tests
+        run: cargo test --workspace --lib --bins
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rimuru
+          POSTGRES_PASSWORD: rimuru
+          POSTGRES_DB: rimuru_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-integration-
+            ${{ runner.os }}-cargo-
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U rimuru; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Initialize test database
+        run: |
+          PGPASSWORD=rimuru psql -h localhost -U rimuru -d rimuru_test -f tests/fixtures/init.sql
+        env:
+          PGPASSWORD: rimuru
+
+      - name: Build CLI binary
+        run: cargo build --release -p rimuru-cli
+
+      - name: Run CLI integration tests
+        run: cargo test --test cli_test -- --test-threads=1
+        env:
+          DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_test
+          TEST_DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_test
+
+      - name: Run agent flow tests
+        run: cargo test --test agent_flow_test
+        env:
+          DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_test
+
+      - name: Run sync flow tests
+        run: cargo test --test sync_flow_test
+        env:
+          DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_test
+
+      - name: Run plugin flow tests
+        run: cargo test --test plugin_flow_test
+        env:
+          DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_test
+
+  integration-tests-with-db:
+    name: Integration Tests with Database
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rimuru
+          POSTGRES_PASSWORD: rimuru
+          POSTGRES_DB: rimuru_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-db-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-db-
+            ${{ runner.os }}-cargo-
+
+      - name: Build CLI binary
+        run: cargo build --release -p rimuru-cli
+
+      - name: Run database integration tests
+        run: cargo test --test cli_test database_integration_tests -- --ignored --test-threads=1
+        env:
+          DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_ci
+          TEST_DATABASE_URL: postgres://rimuru:rimuru@localhost:5432/rimuru_ci
+
+  all-tests:
+    name: All Tests Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, integration-tests-with-db]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.integration-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.integration-tests-with-db.result }}" == "failure" ]]; then
+            echo "One or more test jobs failed"
+            exit 1
+          fi
+          echo "All tests passed!"

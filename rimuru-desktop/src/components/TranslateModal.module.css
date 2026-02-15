@@ -1,0 +1,217 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn var(--duration-normal) var(--ease-out-expo);
+}
+
+.overlay[data-state="exiting"] {
+  animation: fadeOut var(--duration-normal) var(--ease-out-expo) forwards;
+}
+
+.modal {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 500px;
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn var(--duration-normal) var(--ease-out-back);
+}
+
+.overlay[data-state="exiting"] .modal {
+  opacity: 0;
+  transform: scale(0.97);
+  transition: all var(--duration-normal) var(--ease-out-expo);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.skillName {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 4px 0 0;
+}
+
+.closeBtn {
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.closeBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.content {
+  padding: 20px;
+}
+
+.description {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 20px;
+}
+
+.translationFlow {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.agentSelect {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.select {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  color: var(--color-text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.select:focus {
+  border-color: var(--color-accent);
+}
+
+.arrow {
+  color: var(--color-text-muted);
+  padding-bottom: 10px;
+}
+
+.errorBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-bg-primary));
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-size: 13px;
+  margin-top: 16px;
+}
+
+.resultBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.resultBox.success {
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-primary));
+  border: 1px solid var(--color-success);
+}
+
+.resultBox.error {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-bg-primary));
+  border: 1px solid var(--color-error);
+}
+
+.resultIcon {
+  flex-shrink: 0;
+}
+
+.resultBox.success .resultIcon {
+  color: var(--color-success);
+}
+
+.resultBox.error .resultIcon {
+  color: var(--color-error);
+}
+
+.resultText h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.resultText p {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.outputPath {
+  display: block;
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.warnings {
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-primary));
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.warningHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-warning);
+  margin-bottom: 8px;
+}
+
+.warningList {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.warningList li {
+  margin-bottom: 4px;
+}
+
+.warningList li:last-child {
+  margin-bottom: 0;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+}

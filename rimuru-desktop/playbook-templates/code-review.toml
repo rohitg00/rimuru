@@ -1,0 +1,27 @@
+[playbook]
+name = "Code Review"
+description = "Comprehensive code review with security, performance, and style checks"
+
+[[steps]]
+name = "Security Audit"
+prompt = "Review {target_path} for security vulnerabilities including injection, auth issues, and data exposure"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Performance Review"
+prompt = "Analyze performance bottlenecks, memory leaks, and optimization opportunities"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Style and Architecture"
+prompt = "Review code style, naming conventions, and architectural patterns for consistency"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Summary"
+prompt = "Summarize all findings from the security, performance, and style reviews into a final report"
+agent_type = "claude_code"
+gate = "approval"

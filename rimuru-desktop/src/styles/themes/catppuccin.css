@@ -1,0 +1,17 @@
+[data-theme="catppuccin"] {
+  --color-bg-primary: #1e1e2e;
+  --color-bg-secondary: #313244;
+  --color-bg-tertiary: #45475a;
+  --color-text-primary: #cdd6f4;
+  --color-text-secondary: #bac2de;
+  --color-text-muted: #6c7086;
+  --color-accent: #89b4fa;
+  --color-accent-hover: #b4befe;
+  --color-success: #a6e3a1;
+  --color-warning: #f9e2af;
+  --color-error: #f38ba8;
+  --color-info: #89dceb;
+  --color-border: #45475a;
+  --color-sidebar: #181825;
+  --color-text-on-accent: #1e1e2e;
+}

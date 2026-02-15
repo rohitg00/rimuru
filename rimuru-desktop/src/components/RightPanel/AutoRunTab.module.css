@@ -1,0 +1,20 @@
+.container { padding: 12px; }
+.playbookName { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
+.progressBar { height: 4px; background: var(--color-bg-tertiary); border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+.progressFill { height: 100%; background: var(--color-accent); border-radius: 2px; transition: width var(--duration-slow) var(--ease-out-expo); }
+.taskList { display: flex; flex-direction: column; gap: 8px; }
+.task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.taskCompleted { color: var(--color-text-muted); text-decoration: line-through; }
+.taskActive { color: var(--color-accent); font-weight: 500; animation: pulseRing 2s ease-in-out infinite; }
+@keyframes pulseRing {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.checkbox { width: 14px; height: 14px; accent-color: var(--color-accent); }
+.actions { display: flex; gap: 8px; margin-top: 16px; }

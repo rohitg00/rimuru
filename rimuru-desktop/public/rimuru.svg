@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="body" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#d4eaf7"/>
+      <stop offset="45%" stop-color="#a8cce8"/>
+      <stop offset="100%" stop-color="#7ba8d0"/>
+    </radialGradient>
+    <radialGradient id="inner" cx="55%" cy="55%" r="45%">
+      <stop offset="0%" stop-color="#8fa8c8" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#7b9ab8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shine" cx="40%" cy="30%" r="30%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#0d1b2a"/>
+  <ellipse cx="64" cy="100" rx="28" ry="3" fill="#7ba8d0" opacity="0.12"/>
+  <path d="M64 30 C64 28 66 26 67 27 C68 28 67 30 66 32 C70 30 80 34 90 44 C100 54 102 68 100 78 C98 88 92 96 82 100 C72 104 56 104 46 100 C36 96 30 88 28 78 C26 68 28 54 38 44 C48 34 58 30 62 32 C61 30 64 32 64 30 Z" fill="url(#body)" stroke="#5a8ab0" stroke-width="1.8"/>
+  <path d="M44 58 C50 62 60 68 64 72 C68 68 78 62 84 58 C80 72 72 84 64 86 C56 84 48 72 44 58 Z" fill="url(#inner)" opacity="0.5"/>
+  <ellipse cx="54" cy="42" rx="14" ry="8" fill="#ffffff" opacity="0.7" transform="rotate(-15, 54, 42)"/>
+  <ellipse cx="68" cy="50" rx="6" ry="3.5" fill="#ffffff" opacity="0.35" transform="rotate(-10, 68, 50)"/>
+  <path d="M48 62 Q52 58 56 62" stroke="#3a6080" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M72 62 Q76 58 80 62" stroke="#3a6080" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <line x1="56 " y1="72" x2="60" y2="70" stroke="#3a6080" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="72" y1="72" x2="68" y2="70" stroke="#3a6080" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="60" y1="71" x2="64" y2="72.5" stroke="#3a6080" stroke-width="1" stroke-linecap="round"/>
+  <line x1="68" y1="71" x2="64" y2="72.5" stroke="#3a6080" stroke-width="1" stroke-linecap="round"/>
+  <ellipse cx="40" cy="74" rx="10" ry="6" fill="#f0a0b8" opacity="0.45"/>
+  <ellipse cx="88" cy="74" rx="10" ry="6" fill="#f0a0b8" opacity="0.45"/>
+</svg>

@@ -1,0 +1,27 @@
+[playbook]
+name = "Feature Development"
+description = "Plan, implement, test, and review a new feature"
+
+[[steps]]
+name = "Plan"
+prompt = "Create a detailed implementation plan for: {task}"
+agent_type = "claude_code"
+gate = "approval"
+
+[[steps]]
+name = "Implement"
+prompt = "Implement the feature based on the plan above"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Test"
+prompt = "Write comprehensive tests for the implementation"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Review"
+prompt = "Review all changes, check for bugs, suggest improvements"
+agent_type = "claude_code"
+gate = "approval"

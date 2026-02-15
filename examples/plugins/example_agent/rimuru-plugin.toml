@@ -1,0 +1,31 @@
+[plugin]
+name = "example-agent"
+version = "0.1.0"
+author = "Example Author"
+description = "An example agent plugin demonstrating how to create a Rimuru agent adapter"
+homepage = "https://github.com/example/example-agent"
+repository = "https://github.com/example/example-agent"
+license = "MIT"
+plugin_type = "native"
+entry_point = "libexample_agent.so"
+
+[capabilities.agent]
+agent_type = "example"
+supports_sessions = true
+supports_costs = true
+supports_streaming = false
+
+[[permissions]]
+name = "network"
+description = "Required to connect to the example API"
+required = true
+
+[[dependencies]]
+
+[config]
+schema = { type = "object", properties = { api_endpoint = { type = "string", default = "https://api.example.com" }, api_key = { type = "string" }, sync_interval_seconds = { type = "integer", default = 300 } } }
+
+[config.defaults]
+api_endpoint = "https://api.example.com"
+sync_interval_seconds = 300
+include_inactive = false

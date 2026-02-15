@@ -1,0 +1,159 @@
+# Rimuru Default Configuration
+# This file contains default settings that can be overridden by environment variables
+
+[database]
+# PostgreSQL connection settings
+# Can be overridden by DATABASE_URL or RIMURU_DATABASE_URL env var
+url = "postgres://localhost/rimuru_dev"
+
+# Connection pool settings
+pool_min_connections = 1
+pool_max_connections = 10
+pool_acquire_timeout_secs = 30
+pool_idle_timeout_secs = 600
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+
+# Enable structured JSON logging (for production)
+json_format = false
+
+# Log file path (optional, empty = stdout only)
+file_path = ""
+
+# Log file rotation
+max_file_size_mb = 100
+max_backup_count = 5
+
+[metrics]
+# Interval between metric snapshots (seconds)
+interval_secs = 5
+
+# Store metrics to database
+store_to_db = true
+
+# Data retention (days)
+retention_days = 30
+
+# Enable CPU metrics collection
+collect_cpu = true
+
+# Enable memory metrics collection
+collect_memory = true
+
+# Enable active session tracking
+track_sessions = true
+
+[agents]
+# Default timeout for agent connections (seconds)
+connection_timeout_secs = 30
+
+# Auto-discover running agents on startup
+auto_discover = true
+
+# Health check interval (seconds)
+health_check_interval_secs = 60
+
+# Supported agent types
+# These are automatically enabled when their processes are detected
+[agents.supported]
+claude_code = true
+codex = true
+copilot = true
+goose = true
+opencode = true
+cursor = true
+
+[sync]
+# Enable automatic model pricing sync
+enabled = true
+
+# Sync interval (hours) - default 6 hours for fresh data
+interval_hours = 6
+
+# Retry failed syncs
+retry_count = 3
+retry_delay_secs = 60
+
+# Maximum retry delay (exponential backoff)
+retry_max_delay_secs = 3600
+
+# Providers to sync pricing from (official APIs)
+[sync.providers]
+anthropic = true
+openai = true
+google = true
+
+# Community sources (fallback when official APIs unavailable)
+openrouter = true
+litellm = true
+
+# Rate limiting per provider (requests per minute)
+[sync.rate_limits]
+anthropic_rpm = 60
+openai_rpm = 60
+google_rpm = 60
+openrouter_rpm = 100
+litellm_rpm = 100
+
+[display]
+# Enable colored terminal output
+color = true
+
+# Date/time format (strftime format)
+datetime_format = "%Y-%m-%d %H:%M:%S"
+
+# Currency for cost display
+currency = "USD"
+
+# Number of decimal places for cost display
+cost_precision = 6
+
+# Compact mode (less verbose output)
+compact = false
+
+[tui]
+# TUI refresh rate (milliseconds)
+refresh_rate_ms = 250
+
+# Show system metrics panel
+show_metrics = true
+
+# Show cost summary panel
+show_costs = true
+
+# Theme name - available options:
+# - "Tokyo Night" (default, dark theme popular in dev tools)
+# - "Catppuccin Mocha" (dark, pastel colors)
+# - "Catppuccin Latte" (light, pastel colors)
+# - "Dracula" (dark, high contrast)
+# - "Nord" (dark, arctic blue palette)
+# - "Gruvbox Dark" (dark, retro groove)
+# - "Gruvbox Light" (light, retro groove)
+# Theme preference is stored in ~/.config/rimuru/theme.toml
+# Press 't' at runtime to cycle through themes
+theme = "Tokyo Night"
+
+# Enable mouse support
+mouse_enabled = true
+
+# Enable Unicode characters
+unicode_enabled = true
+
+[desktop]
+# Window dimensions
+default_width = 1200
+default_height = 800
+
+# Start minimized to system tray
+start_minimized = false
+
+# Show notifications for cost thresholds
+notifications_enabled = true
+
+# Cost threshold for warning notification (USD)
+cost_warning_threshold = 1.0
+
+# Cost threshold for alert notification (USD)
+cost_alert_threshold = 5.0

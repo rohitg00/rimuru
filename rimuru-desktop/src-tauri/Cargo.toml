@@ -1,0 +1,69 @@
+[package]
+name = "rimuru-desktop"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rohit Ghumare <ghumare64@gmail.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/rohitg00/rimuru"
+description = "Desktop application for Rimuru - AI agent orchestration and cost tracking"
+
+[lib]
+name = "rimuru_desktop_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+# Core library
+rimuru-core = { path = "../../rimuru-core" }
+
+# Tauri
+tauri = { version = "2.2", features = ["tray-icon"] }
+tauri-plugin-shell = "2.2"
+tauri-plugin-store = "2.2"
+tauri-plugin-fs = "2.2"
+
+# Async runtime
+tokio = { version = "1.45", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Unique identifiers
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# PTY
+portable-pty = "0.8"
+base64 = "0.22"
+parking_lot = "0.12"
+toml = "0.8"
+walkdir = "2"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid", "json"] }
+
+# Remote control server
+axum = "0.8"
+qrcode = "0.14"
+tower-http = { version = "0.6", features = ["cors"] }
+local-ip-address = "0.6"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[lints]
+workspace = true

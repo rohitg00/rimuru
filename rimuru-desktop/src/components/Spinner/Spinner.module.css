@@ -1,0 +1,9 @@
+.spinner {
+  display: inline-flex;
+  animation: spin 0.7s linear infinite;
+  color: var(--color-accent);
+}
+
+.sm { width: 14px; height: 14px; }
+.md { width: 20px; height: 20px; }
+.lg { width: 32px; height: 32px; }

@@ -1,0 +1,195 @@
+.step {
+  display: flex;
+  gap: 16px;
+  position: relative;
+}
+
+.stepIndicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stepCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  z-index: 1;
+}
+
+.stepCirclePending {
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.stepCircleRunning {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.stepCircleWaiting {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.stepCircleCompleted {
+  border-color: var(--color-info);
+  background: var(--color-info);
+  color: var(--color-text-on-accent);
+}
+
+.stepCircleFailed {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--color-text-on-accent);
+}
+
+.connector {
+  width: 2px;
+  flex: 1;
+  min-height: 16px;
+  background: var(--color-border);
+}
+
+.connectorActive {
+  background: var(--color-info);
+}
+
+.stepContent {
+  flex: 1;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.stepContentRunning {
+  border-color: var(--color-success);
+}
+
+.stepContentWaiting {
+  border-color: var(--color-warning);
+}
+
+.stepContentCompleted {
+  border-color: var(--color-info);
+  opacity: 0.8;
+}
+
+.stepContentFailed {
+  border-color: var(--color-error);
+}
+
+.stepTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.stepName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
+.badgeApproval {
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+}
+
+.badgeAgent {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+}
+
+.promptPreview {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.stepActions {
+  display: flex;
+  gap: 6px;
+}
+
+.launchBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.launchBtn:hover {
+  opacity: 0.85;
+}
+
+.launchBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.skipBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.skipBtn:hover {
+  border-color: var(--color-text-secondary);
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 40%, transparent); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}

@@ -1,0 +1,61 @@
+[package]
+name = "rimuru-tui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Terminal user interface for Rimuru - AI agent orchestration and cost tracking"
+
+[[bin]]
+name = "rimuru-tui"
+path = "src/main.rs"
+
+[dependencies]
+# Core library
+rimuru-core = { path = "../rimuru-core" }
+
+# TUI framework
+ratatui = "0.29"
+
+# Terminal backend and events
+crossterm = { version = "0.28", features = ["event-stream"] }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# System metrics
+sysinfo = { workspace = true }
+
+# Configuration
+config = { workspace = true }
+dirs = { workspace = true }
+
+# Async utilities
+futures = "0.3"
+
+# UUID for IDs
+uuid = { workspace = true }
+
+# TOML serialization for theme config
+toml = "0.8"
+
+[dev-dependencies]
+tempfile = "3.15"
+
+[lints]
+workspace = true

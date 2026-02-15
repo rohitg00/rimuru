@@ -1,0 +1,17 @@
+[data-theme="nord"] {
+  --color-bg-primary: #2e3440;
+  --color-bg-secondary: #3b4252;
+  --color-bg-tertiary: #434c5e;
+  --color-text-primary: #eceff4;
+  --color-text-secondary: #e5e9f0;
+  --color-text-muted: #4c566a;
+  --color-accent: #88c0d0;
+  --color-accent-hover: #81a1c1;
+  --color-success: #a3be8c;
+  --color-warning: #ebcb8b;
+  --color-error: #bf616a;
+  --color-info: #5e81ac;
+  --color-border: #4c566a;
+  --color-sidebar: #242933;
+  --color-text-on-accent: #2e3440;
+}

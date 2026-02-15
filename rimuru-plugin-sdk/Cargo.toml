@@ -1,0 +1,33 @@
+[package]
+name = "rimuru-plugin-sdk"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "SDK for developing Rimuru plugins - includes traits, macros, and utilities"
+keywords = ["rimuru", "plugin", "sdk", "ai", "agent"]
+categories = ["development-tools", "api-bindings"]
+
+[dependencies]
+rimuru-core = { path = "../rimuru-core" }
+
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[features]
+default = []
+full = ["macros"]
+macros = []
+
+[lints]
+workspace = true

@@ -1,0 +1,116 @@
+.menuBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  -webkit-app-region: drag;
+}
+
+.menuWrapper {
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.menuButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.menuButton:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.menuButton.active {
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+.chevron {
+  opacity: 0.6;
+  transition: transform var(--transition-fast);
+}
+
+.menuButton.active .chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  animation: fadeIn 100ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.menuItem:hover:not(.disabled) {
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+.menuItem.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.itemLabel {
+  flex: 1;
+}
+
+.shortcut {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.menuItem:hover:not(.disabled) .shortcut {
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+
+.separator {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--color-border);
+}

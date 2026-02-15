@@ -1,0 +1,17 @@
+[data-theme="dracula"] {
+  --color-bg-primary: #282a36;
+  --color-bg-secondary: #44475a;
+  --color-bg-tertiary: #6272a4;
+  --color-text-primary: #f8f8f2;
+  --color-text-secondary: #f8f8f2;
+  --color-text-muted: #6272a4;
+  --color-accent: #bd93f9;
+  --color-accent-hover: #ff79c6;
+  --color-success: #50fa7b;
+  --color-warning: #ffb86c;
+  --color-error: #ff5555;
+  --color-info: #8be9fd;
+  --color-border: #6272a4;
+  --color-sidebar: #21222c;
+  --color-text-on-accent: #282a36;
+}

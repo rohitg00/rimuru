@@ -1,0 +1,17 @@
+[data-theme="tokyo-night"] {
+  --color-bg-primary: #1a1b26;
+  --color-bg-secondary: #24283b;
+  --color-bg-tertiary: #414868;
+  --color-text-primary: #c0caf5;
+  --color-text-secondary: #a9b1d6;
+  --color-text-muted: #565f89;
+  --color-accent: #7aa2f7;
+  --color-accent-hover: #89b4fa;
+  --color-success: #9ece6a;
+  --color-warning: #e0af68;
+  --color-error: #f7768e;
+  --color-info: #7dcfff;
+  --color-border: #414868;
+  --color-sidebar: #1f2335;
+  --color-text-on-accent: #1a1b26;
+}

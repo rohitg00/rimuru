@@ -1,0 +1,21 @@
+.container {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  background: var(--color-bg-primary);
+  overflow: hidden;
+}
+
+.container :global(.xterm) {
+  padding: 8px;
+  height: 100%;
+}
+
+.container :global(.xterm-viewport) {
+  overflow-y: auto;
+}
+
+.container :global(.xterm-screen) {
+  height: 100% !important;
+}

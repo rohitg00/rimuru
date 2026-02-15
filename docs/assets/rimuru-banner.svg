@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#091420"/>
+      <stop offset="50%" stop-color="#0d1b2a"/>
+      <stop offset="100%" stop-color="#091420"/>
+    </linearGradient>
+    <radialGradient id="body" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#d4eaf7"/>
+      <stop offset="45%" stop-color="#a8cce8"/>
+      <stop offset="100%" stop-color="#7ba8d0"/>
+    </radialGradient>
+    <radialGradient id="inner" cx="55%" cy="55%" r="45%">
+      <stop offset="0%" stop-color="#8fa8c8" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#7b9ab8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5cc6d0"/>
+      <stop offset="50%" stop-color="#a8cce8"/>
+      <stop offset="100%" stop-color="#5cc6d0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="800" height="200" fill="url(#bgGrad)" rx="12"/>
+
+  <g transform="translate(60, 18) scale(1.25)">
+    <ellipse cx="64" cy="100" rx="28" ry="3" fill="#7ba8d0" opacity="0.1"/>
+    <path d="M64 30 C64 28 66 26 67 27 C68 28 67 30 66 32 C70 30 80 34 90 44 C100 54 102 68 100 78 C98 88 92 96 82 100 C72 104 56 104 46 100 C36 96 30 88 28 78 C26 68 28 54 38 44 C48 34 58 30 62 32 C61 30 64 32 64 30 Z" fill="url(#body)" stroke="#5a8ab0" stroke-width="1.5" filter="url(#glow)"/>
+    <path d="M44 58 C50 62 60 68 64 72 C68 68 78 62 84 58 C80 72 72 84 64 86 C56 84 48 72 44 58 Z" fill="url(#inner)" opacity="0.5"/>
+    <ellipse cx="54" cy="42" rx="14" ry="8" fill="#ffffff" opacity="0.7" transform="rotate(-15, 54, 42)"/>
+    <ellipse cx="68" cy="50" rx="6" ry="3.5" fill="#ffffff" opacity="0.35" transform="rotate(-10, 68, 50)"/>
+    <path d="M48 62 Q52 58 56 62" stroke="#3a6080" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path d="M72 62 Q76 58 80 62" stroke="#3a6080" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <line x1="56" y1="72" x2="60" y2="70" stroke="#3a6080" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="72" y1="72" x2="68" y2="70" stroke="#3a6080" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="60" y1="71" x2="64" y2="72.5" stroke="#3a6080" stroke-width="1" stroke-linecap="round"/>
+    <line x1="68" y1="71" x2="64" y2="72.5" stroke="#3a6080" stroke-width="1" stroke-linecap="round"/>
+    <ellipse cx="40" cy="74" rx="10" ry="6" fill="#f0a0b8" opacity="0.45"/>
+    <ellipse cx="88" cy="74" rx="10" ry="6" fill="#f0a0b8" opacity="0.45"/>
+  </g>
+
+  <text x="240" y="85" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="54" font-weight="800" fill="url(#textGrad)" letter-spacing="-1">Rimuru</text>
+
+  <text x="242" y="118" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" fill="#5580a0" letter-spacing="4" font-weight="300">AI AGENT ORCHESTRATION</text>
+
+  <line x1="242" y1="132" x2="540" y2="132" stroke="#1e3347" stroke-width="1"/>
+
+  <text x="242" y="155" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#5580a0">Multi-agent management</text>
+  <circle cx="400" cy="151" r="2" fill="#5cc6d0" opacity="0.6"/>
+  <text x="412" y="155" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#5580a0">Cost tracking</text>
+  <circle cx="505" cy="151" r="2" fill="#5cc6d0" opacity="0.6"/>
+  <text x="517" y="155" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#5580a0">Real-time monitoring</text>
+
+  <text x="242" y="180" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="11" fill="#3a5570">Rust + Tauri + React</text>
+  <circle cx="340" cy="176" r="1.5" fill="#5cc6d0" opacity="0.4"/>
+  <text x="350" y="180" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="11" fill="#3a5570">Claude, Codex, Copilot, Goose, OpenCode, Cursor</text>
+</svg>

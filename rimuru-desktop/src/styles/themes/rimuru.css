@@ -1,0 +1,17 @@
+[data-theme="rimuru"] {
+  --color-bg-primary: #0d1b2a;
+  --color-bg-secondary: #132234;
+  --color-bg-tertiary: #1c3148;
+  --color-text-primary: #dceaf5;
+  --color-text-secondary: #a8c8e8;
+  --color-text-muted: #5a84a5;
+  --color-accent: #5cc6d0;
+  --color-accent-hover: #7dd8e0;
+  --color-success: #6ecf8e;
+  --color-warning: #f0c060;
+  --color-error: #e8758a;
+  --color-info: #a8cce8;
+  --color-border: #1c3148;
+  --color-sidebar: #091420;
+  --color-text-on-accent: #0d1b2a;
+}

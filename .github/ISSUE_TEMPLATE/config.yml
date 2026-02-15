@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/rimuru-dev/rimuru/discussions
+    about: Ask questions, share ideas, and connect with the community
+  - name: Documentation
+    url: https://rimuru.dev/docs
+    about: Check out our documentation for guides and API references
+  - name: Discord Community
+    url: https://discord.gg/rimuru
+    about: Chat with the community and get real-time help

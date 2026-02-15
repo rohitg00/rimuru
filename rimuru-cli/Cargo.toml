@@ -1,0 +1,81 @@
+[package]
+name = "rimuru-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line interface for Rimuru - AI agent orchestration and cost tracking"
+
+[[bin]]
+name = "rimuru"
+path = "src/main.rs"
+
+[dependencies]
+# Core library
+rimuru-core = { path = "../rimuru-core" }
+
+# Async runtime
+tokio = { workspace = true }
+
+# CLI framework
+clap = { workspace = true }
+
+# Terminal colors
+colored = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Configuration
+dotenvy = { workspace = true }
+
+# Platform directories
+dirs = "5.0"
+
+# UUID for agent lookups
+uuid = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# Table formatting
+comfy-table = { workspace = true }
+
+[dev-dependencies]
+# Testing dependencies
+wiremock = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+
+[features]
+default = []
+integration_with_db = []
+
+[[test]]
+name = "cli_test"
+path = "../tests/integration/cli_test.rs"
+
+[[test]]
+name = "agent_flow_test"
+path = "../tests/integration/agent_flow_test.rs"
+
+[[test]]
+name = "sync_flow_test"
+path = "../tests/integration/sync_flow_test.rs"
+
+[[test]]
+name = "plugin_flow_test"
+path = "../tests/integration/plugin_flow_test.rs"
+
+[lints]
+workspace = true

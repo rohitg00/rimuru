@@ -1,0 +1,58 @@
+# Build artifacts
+/target/
+**/target/
+**/dist/
+**/node_modules/
+
+# Cargo.lock for libraries (keep for binaries)
+# Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude config (user-level)
+.claude/
+
+# Debug files
+*.pdb
+
+# Coverage
+*.profraw
+*.profdata
+coverage/
+lcov.info
+
+# Documentation build
+/doc/
+
+# Backup files
+*.bak
+*.backup
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# SkillKit config (user-level)
+.skillkit/
+
+# Auto Run Docs
+Auto Run Docs/

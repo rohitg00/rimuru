@@ -1,0 +1,27 @@
+[playbook]
+name = "Bug Fix"
+description = "Reproduce, diagnose, fix, and verify a bug"
+
+[[steps]]
+name = "Reproduce"
+prompt = "Reproduce and confirm the bug: {bug_description}"
+agent_type = "claude_code"
+gate = "approval"
+
+[[steps]]
+name = "Diagnose"
+prompt = "Find the root cause of the bug and identify affected code"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Fix"
+prompt = "Implement the fix for the identified root cause"
+agent_type = "claude_code"
+gate = "auto"
+
+[[steps]]
+name = "Verify"
+prompt = "Run tests and verify the fix resolves the issue without regressions"
+agent_type = "claude_code"
+gate = "approval"
