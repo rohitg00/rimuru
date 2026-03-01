@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
             };
 
             let style = if i == app.selected_index {
-                Style::default().bg(theme.highlight).fg(theme.fg)
+                Style::default().bg(theme.selection_bg).fg(theme.selection_fg)
             } else {
                 Style::default().fg(theme.fg)
             };

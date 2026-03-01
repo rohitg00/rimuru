@@ -69,7 +69,7 @@ fn render_header(f: &mut Frame, app: &App, area: Rect) {
                 "0".to_string()
             };
             Line::from(vec![
-                Span::styled(format!("{}", num), Style::default().fg(theme.muted)),
+                Span::styled(format!("{} ", num), Style::default().fg(theme.muted)),
                 Span::raw(tab.label()),
             ])
         })

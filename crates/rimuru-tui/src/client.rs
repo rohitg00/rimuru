@@ -52,9 +52,13 @@ pub struct CostSummary {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AgentCostSummary {
+    #[serde(default)]
     pub agent_type: String,
     pub total_cost: f64,
-    pub total_tokens: u64,
+    #[serde(default)]
+    pub total_input_tokens: u64,
+    #[serde(default)]
+    pub total_output_tokens: u64,
     pub record_count: u64,
 }
 
@@ -62,6 +66,7 @@ pub struct AgentCostSummary {
 pub struct ModelCostSummary {
     pub model: String,
     pub total_cost: f64,
+    #[serde(default)]
     pub total_tokens: u64,
     pub record_count: u64,
 }
@@ -69,12 +74,20 @@ pub struct ModelCostSummary {
 #[derive(Debug, Clone, Deserialize)]
 pub struct DailyCostSummary {
     pub date: NaiveDate,
+    #[serde(alias = "cost")]
     pub total_cost: f64,
+    #[serde(alias = "input_tokens")]
     pub total_input_tokens: u64,
+    #[serde(alias = "output_tokens")]
     pub total_output_tokens: u64,
     pub record_count: u64,
     #[serde(default)]
     pub by_agent: Vec<AgentCostSummary>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CostSummaryResponse {
+    pub summary: CostSummary,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -116,37 +129,63 @@ pub struct MetricsHistory {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct MetricsHistoryResponse {
+    pub history: MetricsHistory,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct PluginManifest {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub version: String,
     pub description: Option<String>,
+    #[serde(default)]
     pub language: String,
+    #[serde(default)]
     pub binary_path: String,
     #[serde(default)]
     pub functions: Vec<String>,
+    #[serde(default)]
+    pub hooks: Vec<serde_json::Value>,
     pub enabled: bool,
-    pub installed_at: DateTime<Utc>,
+    #[serde(default)]
+    pub installed: bool,
+    pub author: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct HookConfig {
     pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
     pub event_type: String,
+    #[serde(default)]
     pub function_id: String,
+    #[serde(default)]
     pub priority: i32,
+    #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
-    pub metadata: serde_json::Value,
+    pub matcher: Option<String>,
+    #[serde(default)]
+    pub plugin_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct McpServer {
-    pub name: String,
-    pub url: String,
-    pub status: String,
     #[serde(default)]
-    pub tools: Vec<String>,
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub command: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub source: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -175,9 +214,9 @@ pub struct DashboardStats {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ActivityEvent {
-    #[serde(default)]
+    #[serde(alias = "type", default)]
     pub event_type: String,
-    #[serde(default)]
+    #[serde(alias = "message", default)]
     pub description: String,
     pub timestamp: Option<DateTime<Utc>>,
 }
@@ -298,7 +337,8 @@ impl ApiClient {
     }
 
     pub async fn get_costs_summary(&self) -> Result<CostSummary, String> {
-        self.get("/api/costs/summary").await
+        let resp: CostSummaryResponse = self.get("/api/costs/summary").await?;
+        Ok(resp.summary)
     }
 
     pub async fn get_costs_daily(&self) -> Result<Vec<DailyCostSummary>, String> {
@@ -318,7 +358,8 @@ impl ApiClient {
     }
 
     pub async fn get_metrics_history(&self) -> Result<MetricsHistory, String> {
-        self.get("/api/metrics/history").await
+        let resp: MetricsHistoryResponse = self.get("/api/metrics/history").await?;
+        Ok(resp.history)
     }
 
     pub async fn get_plugins(&self) -> Result<Vec<PluginManifest>, String> {

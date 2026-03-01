@@ -153,7 +153,7 @@ fn spawn_refresh(
 async fn handle_enter(
     app: &mut App,
     client: &ApiClient,
-    tx: &mpsc::UnboundedSender<RefreshResult>,
+    _tx: &mpsc::UnboundedSender<RefreshResult>,
 ) {
     match app.current_tab {
         app::Tab::Agents => {

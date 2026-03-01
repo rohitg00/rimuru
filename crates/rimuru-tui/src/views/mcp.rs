@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    let header = Row::new(vec!["Name", "URL", "Status", "Tools"])
+    let header = Row::new(vec!["Name", "Command", "Source", "Enabled"])
         .style(
             Style::default()
                 .fg(theme.accent)
@@ -42,25 +42,23 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         .enumerate()
         .map(|(i, server)| {
             let style = if i == app.selected_index {
-                Style::default().bg(theme.highlight).fg(theme.fg)
+                Style::default().bg(theme.selection_bg).fg(theme.selection_fg)
             } else {
                 Style::default().fg(theme.fg)
             };
 
-            let status_color = match server.status.as_str() {
-                "Connected" | "Running" => theme.success,
-                "Error" => theme.error,
-                _ => theme.muted,
+            let enabled_text = if server.enabled { "Yes" } else { "No" };
+            let enabled_color = if server.enabled {
+                theme.success
+            } else {
+                theme.muted
             };
 
             Row::new(vec![
                 Cell::from(server.name.clone()),
-                Cell::from(server.url.clone()),
-                Cell::from(Span::styled(
-                    &server.status,
-                    Style::default().fg(status_color),
-                )),
-                Cell::from(server.tools.len().to_string()),
+                Cell::from(server.command.clone()),
+                Cell::from(server.source.clone()),
+                Cell::from(Span::styled(enabled_text, Style::default().fg(enabled_color))),
             ])
             .style(style)
         })
@@ -70,9 +68,9 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         rows,
         [
             Constraint::Percentage(25),
-            Constraint::Percentage(35),
+            Constraint::Percentage(30),
+            Constraint::Percentage(25),
             Constraint::Percentage(15),
-            Constraint::Percentage(10),
         ],
     )
     .header(header)
@@ -88,34 +86,51 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
 
     f.render_widget(table, chunks[0]);
 
-    let selected_tools: Vec<ListItem> = if let Some(server) = app.mcp_servers.get(app.selected_index)
-    {
-        server
-            .tools
-            .iter()
-            .map(|t| {
-                ListItem::new(Span::styled(
-                    format!("  {}", t),
+    let detail_lines: Vec<Line> = if let Some(server) = app.mcp_servers.get(app.selected_index) {
+        let mut lines = vec![
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  Command:  ", Style::default().fg(theme.muted)),
+                Span::styled(&server.command, Style::default().fg(theme.fg)),
+            ]),
+            Line::from(vec![
+                Span::styled("  Args:     ", Style::default().fg(theme.muted)),
+                Span::styled(
+                    server.args.join(" "),
                     Style::default().fg(theme.fg),
-                ))
-            })
-            .collect()
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("  Source:   ", Style::default().fg(theme.muted)),
+                Span::styled(&server.source, Style::default().fg(theme.accent)),
+            ]),
+        ];
+        if !server.id.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("  ID:       ", Style::default().fg(theme.muted)),
+                Span::styled(&server.id, Style::default().fg(theme.fg)),
+            ]));
+        }
+        lines
     } else {
-        vec![ListItem::new(Span::styled(
-            "Select a server to view tools",
-            Style::default().fg(theme.muted),
-        ))]
+        vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "  Select a server to view details",
+                Style::default().fg(theme.muted),
+            )),
+        ]
     };
 
-    let tools_list = List::new(selected_tools).block(
+    let detail = Paragraph::new(detail_lines).block(
         Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.border))
             .title(Span::styled(
-                " Server Tools ",
+                " Server Details ",
                 Style::default().fg(theme.accent),
             )),
     );
 
-    f.render_widget(tools_list, chunks[1]);
+    f.render_widget(detail, chunks[1]);
 }

@@ -1,4 +1,5 @@
 use ratatui::prelude::*;
+use ratatui::symbols;
 use ratatui::widgets::*;
 
 use crate::app::App;
@@ -33,39 +34,72 @@ fn render_gauges(f: &mut Frame, app: &App, area: Rect) {
         } else {
             0.0
         };
-        let cpu_gauge = Gauge::default()
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(theme.border))
-                    .title(Span::styled(" CPU ", Style::default().fg(theme.accent))),
-            )
-            .gauge_style(Style::default().fg(gauge_color(cpu_ratio, theme)))
-            .ratio(cpu_ratio)
-            .label(format!("{:.1}%", m.cpu_usage_percent));
-        f.render_widget(cpu_gauge, cols[0]);
 
-        let mem_gauge = Gauge::default()
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(theme.border))
-                    .title(Span::styled(" Memory ", Style::default().fg(theme.accent))),
-            )
-            .gauge_style(Style::default().fg(gauge_color(mem_ratio, theme)))
+        let cpu_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border))
+            .title(Span::styled(" CPU ", Style::default().fg(theme.muted)));
+
+        let cpu_inner = cpu_block.inner(cols[0]);
+        f.render_widget(cpu_block, cols[0]);
+
+        let cpu_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Length(1), Constraint::Min(0)])
+            .split(cpu_inner);
+
+        let cpu_gauge = LineGauge::default()
+            .filled_style(Style::default().fg(gauge_color(cpu_ratio, theme)))
+            .unfilled_style(Style::default().fg(theme.border))
+            .ratio(cpu_ratio)
+            .line_set(symbols::line::THICK);
+        f.render_widget(cpu_gauge, cpu_chunks[0]);
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                format!("{:.1}%", m.cpu_usage_percent),
+                Style::default().fg(theme.fg),
+            ))
+            .alignment(Alignment::Center),
+            cpu_chunks[1],
+        );
+
+        let mem_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border))
+            .title(Span::styled(" Memory ", Style::default().fg(theme.muted)));
+
+        let mem_inner = mem_block.inner(cols[1]);
+        f.render_widget(mem_block, cols[1]);
+
+        let mem_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Length(1), Constraint::Min(0)])
+            .split(mem_inner);
+
+        let mem_gauge = LineGauge::default()
+            .filled_style(Style::default().fg(gauge_color(mem_ratio, theme)))
+            .unfilled_style(Style::default().fg(theme.border))
             .ratio(mem_ratio)
-            .label(format!(
-                "{:.0}/{:.0} MB",
-                m.memory_used_mb, m.memory_total_mb
-            ));
-        f.render_widget(mem_gauge, cols[1]);
+            .line_set(symbols::line::THICK);
+        f.render_widget(mem_gauge, mem_chunks[0]);
+
+        let mem_gb_used = m.memory_used_mb / 1024.0;
+        let mem_gb_total = m.memory_total_mb / 1024.0;
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                format!("{:.1}/{:.1}G", mem_gb_used, mem_gb_total),
+                Style::default().fg(theme.fg),
+            ))
+            .alignment(Alignment::Center),
+            mem_chunks[1],
+        );
 
         let stats_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.border))
             .title(Span::styled(
                 " Performance ",
-                Style::default().fg(theme.accent),
+                Style::default().fg(theme.muted),
             ));
 
         let stats = Paragraph::new(vec![
@@ -101,7 +135,7 @@ fn render_gauges(f: &mut Frame, app: &App, area: Rect) {
         let info_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.border))
-            .title(Span::styled(" Status ", Style::default().fg(theme.accent)));
+            .title(Span::styled(" Status ", Style::default().fg(theme.muted)));
 
         let uptime = format_uptime(m.uptime_secs);
         let info = Paragraph::new(vec![
@@ -183,11 +217,11 @@ fn render_history(f: &mut Frame, app: &App, area: Rect) {
 
 fn gauge_color(ratio: f64, theme: &crate::theme::Theme) -> Color {
     if ratio > 0.9 {
-        theme.error
+        theme.gauge_high
     } else if ratio > 0.7 {
-        theme.warning
+        theme.gauge_mid
     } else {
-        theme.success
+        theme.gauge_low
     }
 }
 
