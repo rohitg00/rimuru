@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/rimuru-core", "crates/rimuru-cli"]
+members = ["crates/rimuru-core", "crates/rimuru-cli", "crates/rimuru-tui", "crates/rimuru-desktop"]
 
 [workspace.package]
 version = "0.1.0"
@@ -24,3 +24,8 @@ clap = { version = "4", features = ["derive", "env"] }
 comfy-table = "7"
 dirs = "6"
 reqwest = { version = "0.12", features = ["json"] }
+ratatui = "0.29"
+crossterm = "0.28"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-shell = "2"
