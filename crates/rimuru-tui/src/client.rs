@@ -154,13 +154,23 @@ pub struct DashboardStats {
     #[serde(default)]
     pub active_agents: u32,
     #[serde(default)]
+    pub total_agents: u32,
+    #[serde(default)]
     pub total_sessions: u64,
     #[serde(default)]
     pub total_cost: f64,
     #[serde(default)]
+    pub total_cost_today: f64,
+    #[serde(default)]
+    pub total_tokens: u64,
+    #[serde(default)]
     pub active_sessions: u32,
     #[serde(default)]
-    pub uptime_secs: u64,
+    pub hooks_active: u32,
+    #[serde(default)]
+    pub models_used: u32,
+    #[serde(default)]
+    pub plugins_installed: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]

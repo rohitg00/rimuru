@@ -21,11 +21,12 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         .iter()
         .enumerate()
         .map(|(i, session)| {
-            let status_color = match session.status.as_str() {
-                "Active" => theme.success,
-                "Completed" => theme.muted,
-                "Abandoned" => theme.warning,
-                "Error" => theme.error,
+            let status_lower = session.status.to_lowercase();
+            let status_color = match status_lower.as_str() {
+                "active" => theme.success,
+                "completed" => theme.muted,
+                "abandoned" => theme.warning,
+                "error" => theme.error,
                 _ => theme.fg,
             };
 

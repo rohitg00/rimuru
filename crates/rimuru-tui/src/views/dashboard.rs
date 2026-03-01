@@ -39,23 +39,29 @@ fn render_agents_sidebar(f: &mut Frame, app: &App, area: Rect) {
             .enumerate()
             .map(|(i, agent)| {
                 let prefix = if i == app.selected_index { ">" } else { " " };
-                let dot = match agent.status.as_str() {
-                    "Connected" | "Active" => "●",
-                    "Idle" => "●",
+                let status_lower = agent.status.to_lowercase();
+                let dot = match status_lower.as_str() {
+                    "connected" | "active" => "●",
+                    "idle" => "●",
                     _ => "○",
                 };
-                let dot_color = match agent.status.as_str() {
-                    "Connected" | "Active" => theme.success,
-                    "Idle" => theme.warning,
-                    "Error" => theme.error,
+                let dot_color = match status_lower.as_str() {
+                    "connected" | "active" => theme.success,
+                    "idle" => theme.warning,
+                    "error" => theme.error,
                     _ => theme.muted,
                 };
-                let name = if agent.name.len() > 14 {
-                    format!("{:.14}", agent.name)
+                let max_name = ((area.width as usize).saturating_sub(14)).max(8);
+                let name = if agent.name.len() > max_name {
+                    format!("{:.width$}", agent.name, width = max_name)
                 } else {
-                    format!("{:<14}", agent.name)
+                    format!("{:<width$}", agent.name, width = max_name)
                 };
-                let status = format!("({})", agent.status);
+                let status_display = agent.status.chars().next()
+                    .map(|c| c.to_uppercase().to_string())
+                    .unwrap_or_default()
+                    + &agent.status[1..];
+                let status = format!("({})", status_display);
 
                 ListItem::new(Line::from(vec![
                     Span::styled(
@@ -118,10 +124,10 @@ fn render_summary(f: &mut Frame, app: &App, area: Rect) {
         if let Some(ref s) = app.stats {
             (
                 s.active_sessions.to_string(),
-                format_tokens(s.total_sessions * 1000),
-                format!("${:.4}", s.total_cost),
-                format!("${:.2}", s.total_cost * 7.0),
-                format!("${:.2}", s.total_cost * 30.0),
+                format_tokens(s.total_tokens),
+                format!("${:.2}", s.total_cost_today),
+                format!("${:.2}", s.total_cost_today * 7.0),
+                format!("${:.2}", s.total_cost),
             )
         } else {
             (
@@ -133,11 +139,18 @@ fn render_summary(f: &mut Frame, app: &App, area: Rect) {
             )
         };
 
-    let agents_count = app.agents.len();
+    let agents_count = if let Some(ref s) = app.stats {
+        s.total_agents as usize
+    } else {
+        app.agents.len()
+    };
     let connected = app
         .agents
         .iter()
-        .filter(|a| a.status == "Connected" || a.status == "Active")
+        .filter(|a| {
+            let s = a.status.to_lowercase();
+            s == "connected" || s == "active"
+        })
         .count();
 
     let lines = vec![

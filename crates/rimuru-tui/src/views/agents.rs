@@ -19,10 +19,11 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         .iter()
         .enumerate()
         .map(|(i, agent)| {
-            let status_color = match agent.status.as_str() {
-                "Connected" | "Active" => theme.success,
-                "Idle" => theme.warning,
-                "Error" => theme.error,
+            let status_lower = agent.status.to_lowercase();
+            let status_color = match status_lower.as_str() {
+                "connected" | "active" => theme.success,
+                "idle" => theme.warning,
+                "error" => theme.error,
                 _ => theme.muted,
             };
 
