@@ -1,0 +1,17 @@
+{
+  "name": "rimuru-plugin-example-ts",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "npx tsx src/index.ts",
+    "dev": "npx tsx --watch src/index.ts"
+  },
+  "dependencies": {
+    "iii-sdk": "^0.3.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

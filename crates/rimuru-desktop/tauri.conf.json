@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/tauri/refs/heads/v2/crates/tauri-config-schema/schema.json",
+  "productName": "Rimuru",
+  "version": "0.1.0",
+  "identifier": "com.rimuru.desktop",
+  "build": {
+    "devUrl": "http://localhost:3100",
+    "frontendDist": "../../ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Rimuru",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "center": true,
+        "url": "http://localhost:3100"
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "tooltip": "Rimuru",
+      "iconPath": "icons/icon.png"
+    }
+  },
+  "plugins": {
+    "global-shortcut": {
+      "shortcuts": ["CmdOrCtrl+Shift+R"]
+    },
+    "shell": {
+      "open": true
+    }
+  }
+}

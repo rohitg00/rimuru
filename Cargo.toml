@@ -1,100 +1,31 @@
 [workspace]
 resolver = "2"
-members = [
-    "rimuru-core",
-    "rimuru-cli",
-    "rimuru-tui",
-    "rimuru-desktop/src-tauri",
-    "rimuru-plugin-sdk",
-]
+members = ["crates/rimuru-core", "crates/rimuru-cli", "crates/rimuru-tui", "crates/rimuru-desktop"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Rohit Ghumare <ghumare64@gmail.com>"]
-license = "Apache-2.0"
-repository = "https://github.com/rohitg00/rimuru"
-description = "A unified AI agent orchestration and cost tracking platform"
+license = "MIT"
 
 [workspace.dependencies]
-# Async runtime
-tokio = { version = "1.45", features = ["full"] }
-
-# Database
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid", "json"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-
-# Time handling
+iii-sdk = "0.4.1"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-
-# Error handling
-thiserror = "2.0"
-anyhow = "1.0"
-
-# Logging/tracing
+thiserror = "2"
+anyhow = "1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-
-# System metrics
-sysinfo = "0.33"
-
-# HTTP client
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-
-# Unique identifiers
-uuid = { version = "1.11", features = ["v4", "serde"] }
-
-# CLI
-clap = { version = "4.5", features = ["derive", "env"] }
-
-# Terminal colors
-colored = "3.0"
-
-# Configuration
-config = "0.15"
-dotenvy = "0.15"
-
-# Async traits
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
-
-# Directory paths
-dirs = "5.0"
-
-# Table formatting
-comfy-table = "7.1"
-
-# TOML parsing (for plugin manifests)
-toml = "0.8"
-
-# Testing dependencies (shared across workspace)
-wiremock = "0.6"
-
-[workspace.lints.clippy]
-too_many_arguments = "allow"
-needless_borrows_for_generic_args = "allow"
-manual_range_contains = "allow"
-assertions_on_constants = "allow"
-derivable_impls = "allow"
-type_complexity = "allow"
-ptr_arg = "allow"
-if_same_then_else = "allow"
-wrong_self_convention = "allow"
-manual_clamp = "allow"
-map_entry = "allow"
-len_zero = "allow"
-field_reassign_with_default = "allow"
-format_in_format_args = "allow"
-redundant_closure = "allow"
-new_without_default = "allow"
-manual_saturating_arithmetic = "allow"
-useless_format = "allow"
-
-[workspace.lints.rust]
-dead_code = "allow"
-unused_imports = "allow"
-unused_variables = "allow"
-unused_mut = "allow"
+dashmap = "6"
+clap = { version = "4", features = ["derive", "env"] }
+comfy-table = "7"
+dirs = "6"
+reqwest = { version = "0.12", features = ["json"] }
+ratatui = "0.29"
+crossterm = "0.28"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-shell = "2"
