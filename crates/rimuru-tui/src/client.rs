@@ -179,15 +179,40 @@ pub struct HealthStatus {
     pub uptime_secs: u64,
 }
 
+use crate::app::Tab;
+
 pub struct ApiClient {
     client: reqwest::Client,
     base_url: String,
 }
 
+pub struct RefreshResult {
+    pub connected: bool,
+    pub error: Option<String>,
+    pub health: Option<HealthStatus>,
+    pub stats: Option<DashboardStats>,
+    pub activity: Option<Vec<ActivityEvent>>,
+    pub metrics: Option<SystemMetrics>,
+    pub metrics_history: Option<MetricsHistory>,
+    pub agents: Option<Vec<Agent>>,
+    pub sessions: Option<Vec<Session>>,
+    pub cost_summary: Option<CostSummary>,
+    pub daily_costs: Option<Vec<DailyCostSummary>>,
+    pub models: Option<Vec<ModelInfo>>,
+    pub plugins: Option<Vec<PluginManifest>>,
+    pub hooks: Option<Vec<HookConfig>>,
+    pub mcp_servers: Option<Vec<McpServer>>,
+}
+
 impl ApiClient {
     pub fn new(port: u16) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .connect_timeout(std::time::Duration::from_millis(500))
+            .build()
+            .unwrap_or_default();
         Self {
-            client: reqwest::Client::new(),
+            client,
             base_url: format!("http://localhost:{}", port),
         }
     }
@@ -300,5 +325,75 @@ impl ApiClient {
 
     pub async fn get_mcp_servers(&self) -> Result<Vec<McpServer>, String> {
         self.get("/api/mcp").await
+    }
+
+    pub async fn refresh_for_tab(&self, tab: Tab) -> RefreshResult {
+        let mut r = RefreshResult {
+            connected: false,
+            error: None,
+            health: None,
+            stats: None,
+            activity: None,
+            metrics: None,
+            metrics_history: None,
+            agents: None,
+            sessions: None,
+            cost_summary: None,
+            daily_costs: None,
+            models: None,
+            plugins: None,
+            hooks: None,
+            mcp_servers: None,
+        };
+
+        match self.get_health().await {
+            Ok(h) => {
+                r.connected = true;
+                r.health = Some(h);
+            }
+            Err(e) => {
+                r.error = Some(e);
+                return r;
+            }
+        }
+
+        match tab {
+            Tab::Dashboard => {
+                r.stats = self.get_stats().await.ok();
+                r.activity = self.get_activity().await.ok();
+                r.metrics = self.get_metrics().await.ok();
+                r.agents = self.get_agents().await.ok();
+                r.daily_costs = self.get_costs_daily().await.ok();
+            }
+            Tab::Agents => {
+                r.agents = self.get_agents().await.ok();
+            }
+            Tab::Sessions => {
+                r.sessions = self.get_sessions().await.ok();
+            }
+            Tab::Costs => {
+                r.cost_summary = self.get_costs_summary().await.ok();
+                r.daily_costs = self.get_costs_daily().await.ok();
+            }
+            Tab::Models => {
+                r.models = self.get_models().await.ok();
+            }
+            Tab::Metrics => {
+                r.metrics = self.get_metrics().await.ok();
+                r.metrics_history = self.get_metrics_history().await.ok();
+            }
+            Tab::Plugins => {
+                r.plugins = self.get_plugins().await.ok();
+            }
+            Tab::Hooks => {
+                r.hooks = self.get_hooks().await.ok();
+            }
+            Tab::Mcp => {
+                r.mcp_servers = self.get_mcp_servers().await.ok();
+            }
+            Tab::Help => {}
+        }
+
+        r
     }
 }

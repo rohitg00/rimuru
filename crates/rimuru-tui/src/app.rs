@@ -161,6 +161,7 @@ impl App {
 
     pub fn scroll_down(&mut self) {
         self.selected_index = self.selected_index.saturating_add(1);
+        self.clamp_selection();
     }
 
     pub fn scroll_up(&mut self) {
@@ -187,79 +188,51 @@ impl App {
         }
     }
 
-    pub async fn refresh(&mut self, client: &ApiClient) {
-        match client.get_health().await {
-            Ok(h) => {
-                self.health = Some(h);
-                self.connected = true;
-                self.last_error = None;
-            }
-            Err(e) => {
-                self.connected = false;
-                self.last_error = Some(e);
-                return;
-            }
+    pub fn apply_refresh(&mut self, r: RefreshResult) {
+        self.connected = r.connected;
+        if let Some(e) = r.error {
+            self.last_error = Some(e);
+        } else {
+            self.last_error = None;
         }
-
-        match self.current_tab {
-            Tab::Dashboard => {
-                if let Ok(s) = client.get_stats().await {
-                    self.stats = Some(s);
-                }
-                if let Ok(a) = client.get_activity().await {
-                    self.activity = a;
-                }
-                if let Ok(m) = client.get_metrics().await {
-                    self.metrics = Some(m);
-                }
-            }
-            Tab::Agents => {
-                if let Ok(a) = client.get_agents().await {
-                    self.agents = a;
-                }
-            }
-            Tab::Sessions => {
-                if let Ok(s) = client.get_sessions().await {
-                    self.sessions = s;
-                }
-            }
-            Tab::Costs => {
-                if let Ok(c) = client.get_costs_summary().await {
-                    self.cost_summary = Some(c);
-                }
-                if let Ok(d) = client.get_costs_daily().await {
-                    self.daily_costs = d;
-                }
-            }
-            Tab::Models => {
-                if let Ok(m) = client.get_models().await {
-                    self.models = m;
-                }
-            }
-            Tab::Metrics => {
-                if let Ok(m) = client.get_metrics().await {
-                    self.metrics = Some(m);
-                }
-                if let Ok(h) = client.get_metrics_history().await {
-                    self.metrics_history = Some(h);
-                }
-            }
-            Tab::Plugins => {
-                if let Ok(p) = client.get_plugins().await {
-                    self.plugins = p;
-                }
-            }
-            Tab::Hooks => {
-                if let Ok(h) = client.get_hooks().await {
-                    self.hooks = h;
-                }
-            }
-            Tab::Mcp => {
-                if let Ok(m) = client.get_mcp_servers().await {
-                    self.mcp_servers = m;
-                }
-            }
-            Tab::Help => {}
+        if let Some(h) = r.health {
+            self.health = Some(h);
+        }
+        if let Some(s) = r.stats {
+            self.stats = Some(s);
+        }
+        if let Some(a) = r.activity {
+            self.activity = a;
+        }
+        if let Some(m) = r.metrics {
+            self.metrics = Some(m);
+        }
+        if let Some(h) = r.metrics_history {
+            self.metrics_history = Some(h);
+        }
+        if let Some(a) = r.agents {
+            self.agents = a;
+        }
+        if let Some(s) = r.sessions {
+            self.sessions = s;
+        }
+        if let Some(c) = r.cost_summary {
+            self.cost_summary = Some(c);
+        }
+        if let Some(d) = r.daily_costs {
+            self.daily_costs = d;
+        }
+        if let Some(m) = r.models {
+            self.models = m;
+        }
+        if let Some(p) = r.plugins {
+            self.plugins = p;
+        }
+        if let Some(h) = r.hooks {
+            self.hooks = h;
+        }
+        if let Some(m) = r.mcp_servers {
+            self.mcp_servers = m;
         }
         self.clamp_selection();
     }

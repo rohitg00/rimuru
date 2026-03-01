@@ -14,7 +14,7 @@ pub fn render(f: &mut Frame, app: &App) {
         ])
         .split(f.area());
 
-    render_tabs(f, app, chunks[0]);
+    render_header(f, app, chunks[0]);
 
     match app.current_tab {
         Tab::Dashboard => views::dashboard::render(f, app, chunks[1]),
@@ -29,18 +29,47 @@ pub fn render(f: &mut Frame, app: &App) {
         Tab::Help => views::help::render(f, app, chunks[1]),
     }
 
-    render_status_bar(f, app, chunks[2]);
+    render_footer(f, app, chunks[2]);
 }
 
-fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
+fn render_header(f: &mut Frame, app: &App, area: Rect) {
     let theme = app.theme();
+
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length(22),
+            Constraint::Min(0),
+            Constraint::Length(10),
+        ])
+        .split(area);
+
+    let logo = Paragraph::new(Line::from(vec![
+        Span::styled("りむる ", Style::default().fg(theme.accent)),
+        Span::styled(
+            "Rimuru",
+            Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" v0.1", Style::default().fg(theme.muted)),
+    ]))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border)),
+    );
+    f.render_widget(logo, cols[0]);
+
     let titles: Vec<Line> = Tab::all()
         .iter()
         .enumerate()
         .map(|(i, tab)| {
-            let num = if i < 9 { format!("{}", i + 1) } else { "0".to_string() };
+            let num = if i < 9 {
+                format!("{}", i + 1)
+            } else {
+                "0".to_string()
+            };
             Line::from(vec![
-                Span::styled(format!("{} ", num), Style::default().fg(theme.muted)),
+                Span::styled(format!("{}", num), Style::default().fg(theme.muted)),
                 Span::raw(tab.label()),
             ])
         })
@@ -50,11 +79,7 @@ fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.border))
-                .title(Span::styled(
-                    " Rimuru ",
-                    Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
-                )),
+                .border_style(Style::default().fg(theme.border)),
         )
         .select(app.current_tab.index())
         .style(Style::default().fg(theme.fg))
@@ -62,61 +87,91 @@ fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
             Style::default()
                 .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
-        );
-    f.render_widget(tabs, area);
+        )
+        .divider(" │ ");
+    f.render_widget(tabs, cols[1]);
+
+    let now = chrono::Local::now();
+    let clock = Paragraph::new(Line::from(Span::styled(
+        now.format("%H:%M:%S").to_string(),
+        Style::default().fg(theme.muted),
+    )))
+    .alignment(Alignment::Center)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.border)),
+    );
+    f.render_widget(clock, cols[2]);
 }
 
-fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
+fn render_footer(f: &mut Frame, app: &App, area: Rect) {
     let theme = app.theme();
 
-    let connection = if app.connected {
-        Span::styled("● Connected", Style::default().fg(theme.success))
-    } else {
-        Span::styled("○ Disconnected", Style::default().fg(theme.error))
-    };
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(30)])
+        .split(area);
 
-    let theme_name = Span::styled(
-        format!(" │ {} ", app.theme().name),
-        Style::default().fg(theme.muted),
-    );
+    let keybinds = vec![
+        ("q", "Quit"),
+        ("Tab", "Next"),
+        ("j/k", "Nav"),
+        ("t", "Theme"),
+        ("r", "Refresh"),
+        ("/", "Search"),
+        ("?", "Help"),
+    ];
 
-    let help_hint = Span::styled(
-        " │ q:Quit Tab:Switch t:Theme r:Refresh ?:Help",
-        Style::default().fg(theme.muted),
-    );
+    let mut spans: Vec<Span> = Vec::new();
+    for (key, desc) in &keybinds {
+        spans.push(Span::styled(
+            format!(" {}", key),
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ));
+        spans.push(Span::styled(
+            format!(":{} ", desc),
+            Style::default().fg(theme.muted),
+        ));
+    }
 
-    let search = if app.searching {
-        Span::styled(
-            format!(" │ /{}", app.search_query),
+    if app.searching {
+        spans.push(Span::styled(
+            format!(" /{}", app.search_query),
             Style::default().fg(theme.warning),
+        ));
+    }
+
+    if let Some(ref msg) = app.status_message {
+        spans.push(Span::styled(
+            format!(" {} ", msg),
+            Style::default().fg(theme.warning),
+        ));
+    }
+
+    f.render_widget(Paragraph::new(Line::from(spans)), cols[0]);
+
+    let connection = if app.connected {
+        Span::styled(
+            "● Connected",
+            Style::default().fg(theme.success),
         )
     } else {
-        Span::raw("")
-    };
-
-    let status = if let Some(ref msg) = app.status_message {
-        Span::styled(format!(" │ {}", msg), Style::default().fg(theme.warning))
-    } else if let Some(ref err) = app.last_error {
         Span::styled(
-            format!(" │ {}", truncate(err, 40)),
+            "○ Disconnected",
             Style::default().fg(theme.error),
         )
-    } else {
-        Span::raw("")
     };
 
-    let bar = Paragraph::new(Line::from(vec![
-        connection, theme_name, help_hint, search, status,
+    let right = Paragraph::new(Line::from(vec![
+        connection,
+        Span::styled(
+            format!("  {}", app.theme().name),
+            Style::default().fg(theme.muted),
+        ),
     ]))
-    .style(Style::default().bg(theme.bg));
-
-    f.render_widget(bar, area);
-}
-
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max - 3])
-    }
+    .alignment(Alignment::Right);
+    f.render_widget(right, cols[1]);
 }
