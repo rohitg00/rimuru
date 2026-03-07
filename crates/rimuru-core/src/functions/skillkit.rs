@@ -72,10 +72,7 @@ fn register_search(iii: &III, kv: &StateKV) {
                 .to_string();
 
             let cache_key = format!("search::{}", query);
-            let cached: Option<Value> = kv
-                .get("config", &cache_key)
-                .await
-                .map_err(kv_err)?;
+            let cached: Option<Value> = kv.get("config", &cache_key).await.map_err(kv_err)?;
 
             if let Some(cached_result) = cached {
                 return Ok(json!({
@@ -101,36 +98,35 @@ fn register_search(iii: &III, kv: &StateKV) {
 }
 
 fn register_install(iii: &III, _kv: &StateKV) {
-    iii.register_function("rimuru.skillkit.install", move |input: Value| {
-        async move {
-            let skill_name = require_str(&input, "skill")?;
+    iii.register_function("rimuru.skillkit.install", move |input: Value| async move {
+        let skill_name = require_str(&input, "skill")?;
 
-            let agent = input
-                .get("agent")
-                .and_then(|v| v.as_str())
-                .unwrap_or("claude-code");
+        let agent = input
+            .get("agent")
+            .and_then(|v| v.as_str())
+            .unwrap_or("claude-code");
 
-            let mut args = vec!["install", &skill_name];
+        let mut args = vec!["install", &skill_name];
 
-            if agent != "claude-code" {
-                args.push("--agent");
-                args.push(agent);
-            }
-
-            let result = run_skillkit_command(&args).await?;
-
-            Ok(json!({
-                "skill": skill_name,
-                "agent": agent,
-                "result": result
-            }))
+        if agent != "claude-code" {
+            args.push("--agent");
+            args.push(agent);
         }
+
+        let result = run_skillkit_command(&args).await?;
+
+        Ok(json!({
+            "skill": skill_name,
+            "agent": agent,
+            "result": result
+        }))
     });
 }
 
 fn register_translate(iii: &III, _kv: &StateKV) {
-    iii.register_function("rimuru.skillkit.translate", move |input: Value| {
-        async move {
+    iii.register_function(
+        "rimuru.skillkit.translate",
+        move |input: Value| async move {
             let skill_name = require_str(&input, "skill")?;
 
             let target_agent = require_str(&input, "target_agent")?;
@@ -143,8 +139,8 @@ fn register_translate(iii: &III, _kv: &StateKV) {
                 "target_agent": target_agent,
                 "result": result
             }))
-        }
-    });
+        },
+    );
 }
 
 fn register_recommend(iii: &III, kv: &StateKV) {
@@ -185,10 +181,7 @@ fn register_recommend(iii: &III, kv: &StateKV) {
 
             let result = run_skillkit_command(&args).await?;
 
-            let agents: Vec<crate::models::Agent> = kv
-                .list("agents")
-                .await
-                .map_err(kv_err)?;
+            let agents: Vec<crate::models::Agent> = kv.list("agents").await.map_err(kv_err)?;
 
             let active_agent_types: Vec<String> = agents
                 .iter()

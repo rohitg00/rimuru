@@ -154,15 +154,9 @@ fn render_footer(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(Line::from(spans)), cols[0]);
 
     let connection = if app.connected {
-        Span::styled(
-            "● Connected",
-            Style::default().fg(theme.success),
-        )
+        Span::styled("● Connected", Style::default().fg(theme.success))
     } else {
-        Span::styled(
-            "○ Disconnected",
-            Style::default().fg(theme.error),
-        )
+        Span::styled("○ Disconnected", Style::default().fg(theme.error))
     };
 
     let right = Paragraph::new(Line::from(vec![

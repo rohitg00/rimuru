@@ -114,7 +114,9 @@ impl CopilotAdapter {
                                 conversations.push(val);
                             }
                         }
-                        Err(e) => warn!("Failed to read Copilot chat file {}: {}", path.display(), e),
+                        Err(e) => {
+                            warn!("Failed to read Copilot chat file {}: {}", path.display(), e)
+                        }
                     }
                 }
             }

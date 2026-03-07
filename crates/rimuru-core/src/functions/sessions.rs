@@ -20,10 +20,7 @@ fn register_list(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.sessions.list", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let sessions: Vec<Session> = kv
-                .list("sessions")
-                .await
-                .map_err(kv_err)?;
+            let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
             let filter: SessionFilter = serde_json::from_value(input).unwrap_or_default();
 
@@ -55,10 +52,7 @@ fn register_get(iii: &III, kv: &StateKV) {
         async move {
             let session_id = require_str(&input, "session_id")?;
 
-            let session: Option<Session> = kv
-                .get("sessions", &session_id)
-                .await
-                .map_err(kv_err)?;
+            let session: Option<Session> = kv.get("sessions", &session_id).await.map_err(kv_err)?;
 
             match session {
                 Some(s) => {
@@ -82,10 +76,7 @@ fn register_active(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.sessions.active", move |_input: Value| {
         let kv = kv.clone();
         async move {
-            let sessions: Vec<Session> = kv
-                .list("sessions")
-                .await
-                .map_err(kv_err)?;
+            let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
             let active: Vec<&Session> = sessions
                 .iter()
@@ -96,16 +87,11 @@ fn register_active(iii: &III, kv: &StateKV) {
             let total_tokens: u64 = active.iter().map(|s| s.total_tokens).sum();
 
             let mut by_agent: Vec<Value> = Vec::new();
-            let agents: Vec<Agent> = kv
-                .list("agents")
-                .await
-                .map_err(kv_err)?;
+            let agents: Vec<Agent> = kv.list("agents").await.map_err(kv_err)?;
 
             for agent in &agents {
-                let agent_sessions: Vec<&&Session> = active
-                    .iter()
-                    .filter(|s| s.agent_id == agent.id)
-                    .collect();
+                let agent_sessions: Vec<&&Session> =
+                    active.iter().filter(|s| s.agent_id == agent.id).collect();
 
                 if !agent_sessions.is_empty() {
                     by_agent.push(json!({
@@ -134,20 +120,14 @@ fn register_history(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.sessions.history", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let sessions: Vec<Session> = kv
-                .list("sessions")
-                .await
-                .map_err(kv_err)?;
+            let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
             let agent_id = input
                 .get("agent_id")
                 .and_then(|v| v.as_str())
                 .and_then(|s| Uuid::parse_str(s).ok());
 
-            let days = input
-                .get("days")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(30);
+            let days = input.get("days").and_then(|v| v.as_u64()).unwrap_or(30);
 
             let cutoff = Utc::now() - chrono::Duration::days(days as i64);
 
@@ -159,10 +139,7 @@ fn register_history(iii: &III, kv: &StateKV) {
 
             history.sort_by(|a, b| b.started_at.cmp(&a.started_at));
 
-            let limit = input
-                .get("limit")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(100) as usize;
+            let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(100) as usize;
 
             let result: Vec<&&Session> = history.iter().take(limit).collect();
 
@@ -205,10 +182,7 @@ fn register_cleanup(iii: &III, kv: &StateKV) {
 
             let cutoff = Utc::now() - chrono::Duration::days(max_age_days as i64);
 
-            let sessions: Vec<Session> = kv
-                .list("sessions")
-                .await
-                .map_err(kv_err)?;
+            let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
             let stale: Vec<&Session> = sessions
                 .iter()
@@ -225,9 +199,7 @@ fn register_cleanup(iii: &III, kv: &StateKV) {
             for session in &stale {
                 let session_id = session.id.to_string();
                 freed_cost += session.total_cost;
-                kv.delete("sessions", &session_id)
-                    .await
-                    .map_err(kv_err)?;
+                kv.delete("sessions", &session_id).await.map_err(kv_err)?;
                 cleaned += 1;
             }
 

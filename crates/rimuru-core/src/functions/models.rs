@@ -135,10 +135,7 @@ fn register_list(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.models.list", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let stored: Vec<ModelInfo> = kv
-                .list("model_info")
-                .await
-                .map_err(kv_err)?;
+            let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
             let models = if stored.is_empty() {
                 hardcoded_models()
@@ -153,11 +150,7 @@ fn register_list(iii: &III, kv: &StateKV) {
 
             let filtered: Vec<&ModelInfo> = models
                 .iter()
-                .filter(|m| {
-                    provider_filter
-                        .as_ref()
-                        .is_none_or(|p| m.provider == *p)
-                })
+                .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
                 .collect();
 
             Ok(json!({
@@ -182,11 +175,7 @@ fn register_sync(iii: &III, kv: &StateKV) {
 
             let models_to_sync: Vec<&ModelInfo> = all_models
                 .iter()
-                .filter(|m| {
-                    provider_filter
-                        .as_ref()
-                        .is_none_or(|p| m.provider == *p)
-                })
+                .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
                 .collect();
 
             let mut synced_count = 0usize;
@@ -195,9 +184,7 @@ fn register_sync(iii: &III, kv: &StateKV) {
 
             for model in &models_to_sync {
                 let key = model.key();
-                kv.set("model_info", &key, model)
-                    .await
-                    .map_err(kv_err)?;
+                kv.set("model_info", &key, model).await.map_err(kv_err)?;
                 synced_count += 1;
 
                 if providers_seen.insert(model.provider) {
@@ -238,10 +225,7 @@ fn register_get(iii: &III, kv: &StateKV) {
         async move {
             let model_id = require_str(&input, "model_id")?;
 
-            let stored: Vec<ModelInfo> = kv
-                .list("model_info")
-                .await
-                .map_err(kv_err)?;
+            let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
             let all_models = if stored.is_empty() {
                 hardcoded_models()

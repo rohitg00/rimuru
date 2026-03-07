@@ -20,7 +20,9 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         .enumerate()
         .map(|(i, hook)| {
             let style = if i == app.selected_index {
-                Style::default().bg(theme.selection_bg).fg(theme.selection_fg)
+                Style::default()
+                    .bg(theme.selection_bg)
+                    .fg(theme.selection_fg)
             } else {
                 Style::default().fg(theme.fg)
             };
@@ -61,7 +63,10 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
                 )),
                 Cell::from(matcher.to_string()),
                 Cell::from(plugin),
-                Cell::from(Span::styled(enabled_text, Style::default().fg(enabled_color))),
+                Cell::from(Span::styled(
+                    enabled_text,
+                    Style::default().fg(enabled_color),
+                )),
             ])
             .style(style)
         })

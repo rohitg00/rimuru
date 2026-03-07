@@ -45,7 +45,11 @@ fn render_gauges(f: &mut Frame, app: &App, area: Rect) {
 
         let cpu_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Length(1), Constraint::Min(0)])
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
             .split(cpu_inner);
 
         let cpu_gauge = LineGauge::default()
@@ -73,7 +77,11 @@ fn render_gauges(f: &mut Frame, app: &App, area: Rect) {
 
         let mem_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Length(1), Constraint::Min(0)])
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
             .split(mem_inner);
 
         let mem_gauge = LineGauge::default()

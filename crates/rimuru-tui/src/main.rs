@@ -8,13 +8,13 @@ mod ui;
 mod views;
 
 use app::App;
-use client::{ApiClient, RefreshResult};
 use clap::Parser;
+use client::{ApiClient, RefreshResult};
 use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use crossterm::execute;
 use event::{AppEvent, EventReader};
 use ratatui::prelude::*;
 use std::io;
@@ -150,11 +150,7 @@ async fn run_app(
     Ok(())
 }
 
-fn spawn_refresh(
-    client: Arc<ApiClient>,
-    tab: app::Tab,
-    tx: mpsc::UnboundedSender<RefreshResult>,
-) {
+fn spawn_refresh(client: Arc<ApiClient>, tab: app::Tab, tx: mpsc::UnboundedSender<RefreshResult>) {
     tokio::spawn(async move {
         let result = client.refresh_for_tab(tab).await;
         let _ = tx.send(result);

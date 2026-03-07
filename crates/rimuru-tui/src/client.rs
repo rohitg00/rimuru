@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use chrono::{DateTime, NaiveDate, Utc};
+use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Agent {
@@ -367,7 +367,8 @@ impl ApiClient {
     }
 
     pub async fn toggle_plugin(&self, id: &str, action: &str) -> Result<serde_json::Value, String> {
-        self.post_empty(&format!("/api/plugins/{}/{}", id, action)).await
+        self.post_empty(&format!("/api/plugins/{}/{}", id, action))
+            .await
     }
 
     pub async fn get_hooks(&self) -> Result<Vec<HookConfig>, String> {

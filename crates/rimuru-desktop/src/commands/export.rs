@@ -4,10 +4,7 @@ use tauri::State;
 use crate::state::AppState;
 
 #[tauri::command]
-pub async fn export_costs(
-    state: State<'_, AppState>,
-    format: String,
-) -> Result<Value, String> {
+pub async fn export_costs(state: State<'_, AppState>, format: String) -> Result<Value, String> {
     let _ = format;
     state.call("rimuru.costs.summary", json!({})).await
 }

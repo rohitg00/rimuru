@@ -8,7 +8,7 @@ use serde_json::json;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
-use iii_sdk::{III, IIIError, TriggerConfig, TriggerHandler};
+use iii_sdk::{IIIError, TriggerConfig, TriggerHandler, III};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleEntry {
@@ -54,10 +54,7 @@ impl TriggerHandler for ScheduleTriggerHandler {
             description: description.clone(),
         };
 
-        self.entries
-            .write()
-            .await
-            .insert(config.id.clone(), entry);
+        self.entries.write().await.insert(config.id.clone(), entry);
 
         let iii = self.iii.clone();
         let function_id = config.function_id.clone();
@@ -78,10 +75,7 @@ impl TriggerHandler for ScheduleTriggerHandler {
                 });
 
                 if let Err(e) = iii.trigger_void(&function_id, payload) {
-                    warn!(
-                        "Schedule trigger failed for {}: {}",
-                        function_id, e
-                    );
+                    warn!("Schedule trigger failed for {}: {}", function_id, e);
                 }
             }
         });

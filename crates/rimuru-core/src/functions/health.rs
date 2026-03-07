@@ -2,7 +2,9 @@ use chrono::Utc;
 use iii_sdk::III;
 use serde_json::{json, Value};
 
-use crate::models::{Agent, AgentStatus, PluginState, PluginStatus, Session, SessionStatus, SystemMetrics};
+use crate::models::{
+    Agent, AgentStatus, PluginState, PluginStatus, Session, SessionStatus, SystemMetrics,
+};
 use crate::state::StateKV;
 
 pub fn register(iii: &III, kv: &StateKV) {
@@ -25,7 +27,9 @@ impl HealthCheck {
             "message": self.message,
         });
         if let Some(ref d) = self.details {
-            v.as_object_mut().unwrap().insert("details".into(), d.clone());
+            v.as_object_mut()
+                .unwrap()
+                .insert("details".into(), d.clone());
         }
         v
     }
@@ -52,7 +56,10 @@ async fn check_state(kv: &StateKV) -> HealthCheck {
 
 async fn check_agents(kv: &StateKV) -> HealthCheck {
     let agents: Vec<Agent> = kv.list("agents").await.unwrap_or_default();
-    let connected = agents.iter().filter(|a| a.status == AgentStatus::Connected || a.status == AgentStatus::Active).count();
+    let connected = agents
+        .iter()
+        .filter(|a| a.status == AgentStatus::Connected || a.status == AgentStatus::Active)
+        .count();
     let total = agents.len();
     HealthCheck {
         component: "agents",
@@ -65,8 +72,14 @@ async fn check_agents(kv: &StateKV) -> HealthCheck {
 
 async fn check_sessions(kv: &StateKV) -> HealthCheck {
     let sessions: Vec<Session> = kv.list("sessions").await.unwrap_or_default();
-    let active = sessions.iter().filter(|s| s.status == SessionStatus::Active).count();
-    let errored = sessions.iter().filter(|s| s.status == SessionStatus::Error).count();
+    let active = sessions
+        .iter()
+        .filter(|s| s.status == SessionStatus::Active)
+        .count();
+    let errored = sessions
+        .iter()
+        .filter(|s| s.status == SessionStatus::Error)
+        .count();
     let degraded = errored > active && active > 0;
     HealthCheck {
         component: "sessions",
@@ -79,8 +92,14 @@ async fn check_sessions(kv: &StateKV) -> HealthCheck {
 
 async fn check_plugins(kv: &StateKV) -> HealthCheck {
     let plugins: Vec<PluginState> = kv.list("plugin_state").await.unwrap_or_default();
-    let running = plugins.iter().filter(|p| p.status == PluginStatus::Running).count();
-    let errored = plugins.iter().filter(|p| p.status == PluginStatus::Error).count();
+    let running = plugins
+        .iter()
+        .filter(|p| p.status == PluginStatus::Running)
+        .count();
+    let errored = plugins
+        .iter()
+        .filter(|p| p.status == PluginStatus::Error)
+        .count();
     HealthCheck {
         component: "plugins",
         status: if errored > 0 { "degraded" } else { "healthy" },
@@ -105,7 +124,10 @@ async fn check_metrics(kv: &StateKV) -> HealthCheck {
             HealthCheck {
                 component: "metrics",
                 status,
-                message: format!("cpu={:.1}%, mem={:.0}/{:.0}MB, err_rate={:.2}", m.cpu_usage_percent, m.memory_used_mb, m.memory_total_mb, m.error_rate),
+                message: format!(
+                    "cpu={:.1}%, mem={:.0}/{:.0}MB, err_rate={:.2}",
+                    m.cpu_usage_percent, m.memory_used_mb, m.memory_total_mb, m.error_rate
+                ),
                 details: None,
                 healthy,
             }
@@ -128,11 +150,13 @@ fn register_check(iii: &III, kv: &StateKV) {
         let kv = kv.clone();
         let boot_time = boot_time;
         async move {
-            let checks = [check_state(&kv).await,
+            let checks = [
+                check_state(&kv).await,
                 check_agents(&kv).await,
                 check_sessions(&kv).await,
                 check_plugins(&kv).await,
-                check_metrics(&kv).await];
+                check_metrics(&kv).await,
+            ];
 
             let overall_healthy = checks.iter().all(|c| c.healthy);
             let check_json: Vec<Value> = checks.iter().map(|c| c.to_json()).collect();

@@ -40,10 +40,7 @@ pub async fn install(iii: &III, plugin_path: &str, format: &OutputFormat) -> Res
 
 pub async fn uninstall(iii: &III, plugin_id: &str, format: &OutputFormat) -> Result<()> {
     let result = iii
-        .trigger(
-            "rimuru.plugins.uninstall",
-            json!({"plugin_id": plugin_id}),
-        )
+        .trigger("rimuru.plugins.uninstall", json!({"plugin_id": plugin_id}))
         .await?;
 
     let success = result

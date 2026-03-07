@@ -12,7 +12,12 @@ pub enum OutputFormat {
 fn new_table(headers: &[&str]) -> Table {
     let mut table = Table::new();
     table.set_content_arrangement(ContentArrangement::Dynamic);
-    table.set_header(headers.iter().map(|h| Cell::new(*h).fg(Color::Cyan)).collect::<Vec<_>>());
+    table.set_header(
+        headers
+            .iter()
+            .map(|h| Cell::new(*h).fg(Color::Cyan))
+            .collect::<Vec<_>>(),
+    );
     table
 }
 
@@ -33,7 +38,11 @@ fn bool_field(v: &Value, key: &str) -> bool {
 }
 
 fn yes_no(val: bool) -> &'static str {
-    if val { "yes" } else { "no" }
+    if val {
+        "yes"
+    } else {
+        "no"
+    }
 }
 
 fn status_cell(status: &str, colors: &[(&str, Color)]) -> Cell {
@@ -48,7 +57,8 @@ fn status_cell(status: &str, colors: &[(&str, Color)]) -> Cell {
 pub fn print_value<T: Serialize>(data: &T, format: &OutputFormat) {
     match format {
         OutputFormat::Json => {
-            let json = serde_json::to_string_pretty(data).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}"));
+            let json = serde_json::to_string_pretty(data)
+                .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}"));
             println!("{json}");
         }
         OutputFormat::Yaml => {
@@ -112,7 +122,10 @@ fn value_to_kv_table(val: &Value) -> String {
         Value::Object(map) => {
             let mut table = new_table(&["Key", "Value"]);
             for (k, v) in map {
-                table.add_row(vec![Cell::new(k).fg(Color::Green), Cell::new(flat_value(v))]);
+                table.add_row(vec![
+                    Cell::new(k).fg(Color::Green),
+                    Cell::new(flat_value(v)),
+                ]);
             }
             table.to_string()
         }
@@ -139,10 +152,20 @@ pub fn format_agents_list(agents: &[Value], format: &OutputFormat) -> String {
         OutputFormat::Json => serde_json::to_string_pretty(agents).unwrap_or_default(),
         OutputFormat::Yaml => serde_yaml_to_string(agents),
         OutputFormat::Table => {
-            let mut table = new_table(&["ID", "Name", "Type", "Status", "Version", "Sessions", "Est. Cost"]);
+            let mut table = new_table(&[
+                "ID",
+                "Name",
+                "Type",
+                "Status",
+                "Version",
+                "Sessions",
+                "Est. Cost",
+            ]);
             let agent_status_colors = [
-                ("connected", Color::Green), ("active", Color::Green),
-                ("idle", Color::Yellow), ("disconnected", Color::DarkGrey),
+                ("connected", Color::Green),
+                ("active", Color::Green),
+                ("idle", Color::Yellow),
+                ("disconnected", Color::DarkGrey),
                 ("error", Color::Red),
             ];
             for agent in agents {
@@ -153,7 +176,8 @@ pub fn format_agents_list(agents: &[Value], format: &OutputFormat) -> String {
                     Cell::new(str_field(agent, "agent_type")),
                     status_cell(str_field(agent, "status"), &agent_status_colors),
                     Cell::new(str_field(agent, "version")),
-                    Cell::new(u64_field(agent, "session_count")).set_alignment(CellAlignment::Right),
+                    Cell::new(u64_field(agent, "session_count"))
+                        .set_alignment(CellAlignment::Right),
                     Cell::new(format!("${:.4}", f64_field(agent, "total_cost"))),
                 ]);
             }
@@ -167,15 +191,23 @@ pub fn format_sessions_list(sessions: &[Value], format: &OutputFormat) -> String
         OutputFormat::Json => serde_json::to_string_pretty(sessions).unwrap_or_default(),
         OutputFormat::Yaml => serde_yaml_to_string(sessions),
         OutputFormat::Table => {
-            let mut table = new_table(&["ID", "Agent", "Status", "Model", "Messages", "Tokens", "Cost", "Started"]);
+            let mut table = new_table(&[
+                "ID", "Agent", "Status", "Model", "Messages", "Tokens", "Cost", "Started",
+            ]);
             let session_status_colors = [
-                ("active", Color::Green), ("completed", Color::Blue),
-                ("abandoned", Color::Yellow), ("error", Color::Red),
+                ("active", Color::Green),
+                ("completed", Color::Blue),
+                ("abandoned", Color::Yellow),
+                ("error", Color::Red),
             ];
             for session in sessions {
                 let id = str_field(session, "id");
                 let started = str_field(session, "started_at");
-                let started_short = if started.len() > 16 { &started[..16] } else { started };
+                let started_short = if started.len() > 16 {
+                    &started[..16]
+                } else {
+                    started
+                };
                 table.add_row(vec![
                     Cell::new(&id[..8.min(id.len())]),
                     Cell::new(str_field(session, "agent_type")),
@@ -200,10 +232,22 @@ pub fn format_costs_summary(costs: &Value, format: &OutputFormat) -> String {
             let mut out = String::new();
 
             let mut summary = new_table(&["Metric", "Value"]);
-            summary.add_row(vec![Cell::new("Est. Cost (API rates)"), Cell::new(format!("${:.2}", f64_field(costs, "total_cost")))]);
-            summary.add_row(vec![Cell::new("Input Tokens"), Cell::new(format_tokens(u64_field(costs, "total_input_tokens")))]);
-            summary.add_row(vec![Cell::new("Output Tokens"), Cell::new(format_tokens(u64_field(costs, "total_output_tokens")))]);
-            summary.add_row(vec![Cell::new("Sessions"), Cell::new(u64_field(costs, "total_records"))]);
+            summary.add_row(vec![
+                Cell::new("Est. Cost (API rates)"),
+                Cell::new(format!("${:.2}", f64_field(costs, "total_cost"))),
+            ]);
+            summary.add_row(vec![
+                Cell::new("Input Tokens"),
+                Cell::new(format_tokens(u64_field(costs, "total_input_tokens"))),
+            ]);
+            summary.add_row(vec![
+                Cell::new("Output Tokens"),
+                Cell::new(format_tokens(u64_field(costs, "total_output_tokens"))),
+            ]);
+            summary.add_row(vec![
+                Cell::new("Sessions"),
+                Cell::new(u64_field(costs, "total_records")),
+            ]);
             out.push_str(&summary.to_string());
 
             if let Some(by_agent) = costs.get("by_agent").and_then(|v| v.as_array()) {
@@ -215,7 +259,8 @@ pub fn format_costs_summary(costs: &Value, format: &OutputFormat) -> String {
                             Cell::new(str_field(a, "agent_name")),
                             Cell::new(str_field(a, "agent_type")),
                             Cell::new(format!("${:.4}", f64_field(a, "total_cost"))),
-                            Cell::new(u64_field(a, "record_count")).set_alignment(CellAlignment::Right),
+                            Cell::new(u64_field(a, "record_count"))
+                                .set_alignment(CellAlignment::Right),
                         ]);
                     }
                     out.push_str(&agent_table.to_string());
@@ -248,7 +293,8 @@ pub fn format_daily_costs(days: &[Value], format: &OutputFormat) -> String {
         OutputFormat::Json => serde_json::to_string_pretty(days).unwrap_or_default(),
         OutputFormat::Yaml => serde_yaml_to_string(days),
         OutputFormat::Table => {
-            let mut table = new_table(&["Date", "Cost", "Input Tokens", "Output Tokens", "Records"]);
+            let mut table =
+                new_table(&["Date", "Cost", "Input Tokens", "Output Tokens", "Records"]);
             for day in days {
                 table.add_row(vec![
                     Cell::new(str_field(day, "date")),
@@ -268,14 +314,29 @@ pub fn format_models_list(models: &[Value], format: &OutputFormat) -> String {
         OutputFormat::Json => serde_json::to_string_pretty(models).unwrap_or_default(),
         OutputFormat::Yaml => serde_yaml_to_string(models),
         OutputFormat::Table => {
-            let mut table = new_table(&["ID", "Name", "Provider", "Input $/1M", "Output $/1M", "Context", "Vision", "Tools"]);
+            let mut table = new_table(&[
+                "ID",
+                "Name",
+                "Provider",
+                "Input $/1M",
+                "Output $/1M",
+                "Context",
+                "Vision",
+                "Tools",
+            ]);
             for model in models {
                 table.add_row(vec![
                     Cell::new(str_field(model, "id")),
                     Cell::new(str_field(model, "name")),
                     Cell::new(str_field(model, "provider")),
-                    Cell::new(format!("${:.2}", f64_field(model, "input_price_per_million"))),
-                    Cell::new(format!("${:.2}", f64_field(model, "output_price_per_million"))),
+                    Cell::new(format!(
+                        "${:.2}",
+                        f64_field(model, "input_price_per_million")
+                    )),
+                    Cell::new(format!(
+                        "${:.2}",
+                        f64_field(model, "output_price_per_million")
+                    )),
                     Cell::new(format_tokens(u64_field(model, "context_window"))),
                     Cell::new(yes_no(bool_field(model, "supports_vision"))),
                     Cell::new(yes_no(bool_field(model, "supports_tools"))),
@@ -334,7 +395,15 @@ pub fn format_metrics_history(entries: &[Value], format: &OutputFormat) -> Strin
         OutputFormat::Json => serde_json::to_string_pretty(entries).unwrap_or_default(),
         OutputFormat::Yaml => serde_yaml_to_string(entries),
         OutputFormat::Table => {
-            let mut table = new_table(&["Timestamp", "CPU %", "Mem MB", "Agents", "Sessions", "Cost", "Err %"]);
+            let mut table = new_table(&[
+                "Timestamp",
+                "CPU %",
+                "Mem MB",
+                "Agents",
+                "Sessions",
+                "Cost",
+                "Err %",
+            ]);
             for entry in entries {
                 let ts = str_field(entry, "timestamp");
                 let ts_short = if ts.len() > 19 { &ts[..19] } else { ts };
@@ -342,8 +411,10 @@ pub fn format_metrics_history(entries: &[Value], format: &OutputFormat) -> Strin
                     Cell::new(ts_short),
                     Cell::new(format!("{:.1}", f64_field(entry, "cpu_usage_percent"))),
                     Cell::new(format!("{:.0}", f64_field(entry, "memory_used_mb"))),
-                    Cell::new(u64_field(entry, "active_agents")).set_alignment(CellAlignment::Right),
-                    Cell::new(u64_field(entry, "active_sessions")).set_alignment(CellAlignment::Right),
+                    Cell::new(u64_field(entry, "active_agents"))
+                        .set_alignment(CellAlignment::Right),
+                    Cell::new(u64_field(entry, "active_sessions"))
+                        .set_alignment(CellAlignment::Right),
                     Cell::new(format!("${:.4}", f64_field(entry, "total_cost_today"))),
                     Cell::new(format!("{:.2}", f64_field(entry, "error_rate"))),
                 ]);
@@ -358,9 +429,14 @@ pub fn format_plugins_list(plugins: &[Value], format: &OutputFormat) -> String {
         OutputFormat::Json => serde_json::to_string_pretty(plugins).unwrap_or_default(),
         OutputFormat::Yaml => serde_yaml_to_string(plugins),
         OutputFormat::Table => {
-            let mut table = new_table(&["ID", "Name", "Version", "Language", "Enabled", "Functions"]);
+            let mut table =
+                new_table(&["ID", "Name", "Version", "Language", "Enabled", "Functions"]);
             for plugin in plugins {
-                let fns = plugin.get("functions").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0);
+                let fns = plugin
+                    .get("functions")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.len())
+                    .unwrap_or(0);
                 table.add_row(vec![
                     Cell::new(str_field(plugin, "id")),
                     Cell::new(str_field(plugin, "name")),
@@ -403,15 +479,22 @@ pub fn format_health(health: &Value, format: &OutputFormat) -> String {
         OutputFormat::Table => {
             let mut table = new_table(&["Component", "Status"]);
             let health_colors = [
-                ("healthy", Color::Green), ("ok", Color::Green),
+                ("healthy", Color::Green),
+                ("ok", Color::Green),
                 ("degraded", Color::Yellow),
             ];
 
-            table.add_row(vec![Cell::new("Overall"), status_cell(str_field(health, "status"), &health_colors)]);
+            table.add_row(vec![
+                Cell::new("Overall"),
+                status_cell(str_field(health, "status"), &health_colors),
+            ]);
 
             if let Some(components) = health.get("components").and_then(|v| v.as_object()) {
                 for (name, info) in components {
-                    table.add_row(vec![Cell::new(name), status_cell(str_field(info, "status"), &health_colors)]);
+                    table.add_row(vec![
+                        Cell::new(name),
+                        status_cell(str_field(info, "status"), &health_colors),
+                    ]);
                 }
             }
 
@@ -436,7 +519,10 @@ pub fn format_config(config: &Value, format: &OutputFormat) -> String {
             let mut table = new_table(&["Key", "Value"]);
             if let Some(obj) = config.as_object() {
                 for (k, v) in obj {
-                    table.add_row(vec![Cell::new(k).fg(Color::Green), Cell::new(flat_value(v))]);
+                    table.add_row(vec![
+                        Cell::new(k).fg(Color::Green),
+                        Cell::new(flat_value(v)),
+                    ]);
                 }
             } else {
                 table.add_row(vec![Cell::new("value"), Cell::new(flat_value(config))]);
@@ -453,11 +539,20 @@ pub fn format_detected_agents(agents: &[Value], format: &OutputFormat) -> String
         OutputFormat::Table => {
             let mut table = new_table(&["Agent", "Type", "Installed", "Registered"]);
             for agent in agents {
-                let name = agent.get("display_name").or_else(|| agent.get("name"))
-                    .and_then(|v| v.as_str()).unwrap_or("-");
+                let name = agent
+                    .get("display_name")
+                    .or_else(|| agent.get("name"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("-");
                 let installed = bool_field(agent, "installed");
                 let registered = bool_field(agent, "registered");
-                let bool_cell = |val: bool| if val { Cell::new("yes").fg(Color::Green) } else { Cell::new("no").fg(Color::DarkGrey) };
+                let bool_cell = |val: bool| {
+                    if val {
+                        Cell::new("yes").fg(Color::Green)
+                    } else {
+                        Cell::new("no").fg(Color::DarkGrey)
+                    }
+                };
                 table.add_row(vec![
                     Cell::new(name),
                     Cell::new(str_field(agent, "agent_type")),
@@ -487,14 +582,24 @@ pub fn format_mcp_list(servers: &[Value], format: &OutputFormat) -> String {
         OutputFormat::Table => {
             let mut table = new_table(&["Name", "Command", "Args", "Source", "Enabled"]);
             for server in servers {
-                let args = server.get("args")
+                let args = server
+                    .get("args")
                     .and_then(|v| v.as_array())
-                    .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(" "))
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    })
                     .unwrap_or_default();
                 table.add_row(vec![
                     Cell::new(str_field(server, "name")),
                     Cell::new(str_field(server, "command")),
-                    Cell::new(if args.is_empty() { "-".to_string() } else { args }),
+                    Cell::new(if args.is_empty() {
+                        "-".to_string()
+                    } else {
+                        args
+                    }),
                     Cell::new(str_field(server, "source")),
                     Cell::new(yes_no(bool_field(server, "enabled"))),
                 ]);

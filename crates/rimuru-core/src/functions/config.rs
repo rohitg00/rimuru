@@ -42,10 +42,7 @@ fn register_get(iii: &III, kv: &StateKV) {
 
             match key {
                 Some(k) => {
-                    let value: Option<Value> = kv
-                        .get("config", k)
-                        .await
-                        .map_err(kv_err)?;
+                    let value: Option<Value> = kv.get("config", k).await.map_err(kv_err)?;
 
                     let defaults = default_config();
                     let default_val = defaults.get(k);
@@ -77,10 +74,7 @@ fn register_get(iii: &III, kv: &StateKV) {
                     let mut sources = serde_json::Map::new();
 
                     for (k, default_val) in &default_map {
-                        let stored: Option<Value> = kv
-                            .get("config", k)
-                            .await
-                            .map_err(kv_err)?;
+                        let stored: Option<Value> = kv.get("config", k).await.map_err(kv_err)?;
 
                         match stored {
                             Some(v) => {
@@ -94,20 +88,14 @@ fn register_get(iii: &III, kv: &StateKV) {
                         }
                     }
 
-                    let custom_keys = kv
-                        .list_keys("config")
-                        .await
-                        .map_err(kv_err)?;
+                    let custom_keys = kv.list_keys("config").await.map_err(kv_err)?;
 
                     for k in custom_keys {
                         if k.starts_with("search::") || k == "__health_probe" {
                             continue;
                         }
                         if !merged.contains_key(&k) {
-                            let val: Option<Value> = kv
-                                .get("config", &k)
-                                .await
-                                .map_err(kv_err)?;
+                            let val: Option<Value> = kv.get("config", &k).await.map_err(kv_err)?;
                             if let Some(v) = val {
                                 merged.insert(k.clone(), v);
                                 sources.insert(k, json!("user"));
@@ -156,14 +144,9 @@ fn register_set(iii: &III, kv: &StateKV) {
                 }
             }
 
-            let old_value: Option<Value> = kv
-                .get("config", &key)
-                .await
-                .map_err(kv_err)?;
+            let old_value: Option<Value> = kv.get("config", &key).await.map_err(kv_err)?;
 
-            kv.set("config", &key, &value)
-                .await
-                .map_err(kv_err)?;
+            kv.set("config", &key, &value).await.map_err(kv_err)?;
 
             Ok(json!({
                 "key": key,

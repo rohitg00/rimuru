@@ -17,10 +17,8 @@ fn register_current(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.metrics.current", move |_input: Value| {
         let kv = kv.clone();
         async move {
-            let metrics: Option<SystemMetrics> = kv
-                .get("system_metrics", "latest")
-                .await
-                .map_err(kv_err)?;
+            let metrics: Option<SystemMetrics> =
+                kv.get("system_metrics", "latest").await.map_err(kv_err)?;
 
             match metrics {
                 Some(m) => Ok(json!({"metrics": m})),
@@ -38,20 +36,15 @@ fn register_history(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.metrics.history", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let limit = input
-                .get("limit")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(60) as usize;
+            let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(60) as usize;
 
             let interval = input
                 .get("interval_secs")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(60);
 
-            let history: Option<MetricsHistory> = kv
-                .get("system_metrics", "history")
-                .await
-                .map_err(kv_err)?;
+            let history: Option<MetricsHistory> =
+                kv.get("system_metrics", "history").await.map_err(kv_err)?;
 
             match history {
                 Some(mut h) => {
@@ -84,21 +77,13 @@ fn register_collect(iii: &III, kv: &StateKV) {
         let kv = kv.clone();
         let start_time = start_time;
         async move {
-            let agents: Vec<Agent> = kv
-                .list("agents")
-                .await
-                .map_err(kv_err)?;
+            let agents: Vec<Agent> = kv.list("agents").await.map_err(kv_err)?;
 
-            let sessions: Vec<Session> = kv
-                .list("sessions")
-                .await
-                .map_err(kv_err)?;
+            let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
             let active_agents = agents
                 .iter()
-                .filter(|a| {
-                    a.status == AgentStatus::Active || a.status == AgentStatus::Connected
-                })
+                .filter(|a| a.status == AgentStatus::Active || a.status == AgentStatus::Connected)
                 .count() as u32;
 
             let active_sessions = sessions
@@ -182,4 +167,3 @@ fn register_collect(iii: &III, kv: &StateKV) {
         }
     });
 }
-

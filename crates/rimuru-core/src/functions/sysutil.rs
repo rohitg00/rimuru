@@ -20,11 +20,7 @@ pub fn require_uuid(input: &Value, key: &str) -> Result<uuid::Uuid, iii_sdk::III
 }
 
 pub async fn run_cmd(cmd: &str, args: &[&str]) -> String {
-    match tokio::process::Command::new(cmd)
-        .args(args)
-        .output()
-        .await
-    {
+    match tokio::process::Command::new(cmd).args(args).output().await {
         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
         Err(e) => {
             warn!("Command `{}` failed: {}", cmd, e);

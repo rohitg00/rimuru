@@ -16,31 +16,20 @@ pub async fn install_plugin(state: State<'_, AppState>, body: Value) -> Result<V
 }
 
 #[tauri::command]
-pub async fn uninstall_plugin(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<Value, String> {
+pub async fn uninstall_plugin(state: State<'_, AppState>, id: String) -> Result<Value, String> {
     state
         .call("rimuru.plugins.uninstall", json!({ "id": id }))
         .await
 }
 
 #[tauri::command]
-pub async fn start_plugin(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<Value, String> {
+pub async fn start_plugin(state: State<'_, AppState>, id: String) -> Result<Value, String> {
     state
         .call("rimuru.plugins.start", json!({ "id": id }))
         .await
 }
 
 #[tauri::command]
-pub async fn stop_plugin(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<Value, String> {
-    state
-        .call("rimuru.plugins.stop", json!({ "id": id }))
-        .await
+pub async fn stop_plugin(state: State<'_, AppState>, id: String) -> Result<Value, String> {
+    state.call("rimuru.plugins.stop", json!({ "id": id })).await
 }

@@ -12,7 +12,9 @@ pub async fn list_agents(state: State<'_, AppState>) -> Result<Value, String> {
 
 #[tauri::command]
 pub async fn get_agent(state: State<'_, AppState>, agent_id: String) -> Result<Value, String> {
-    state.call("rimuru.agents.get", json!({ "agent_id": agent_id })).await
+    state
+        .call("rimuru.agents.get", json!({ "agent_id": agent_id }))
+        .await
 }
 
 #[tauri::command]
@@ -43,10 +45,7 @@ pub async fn connect_agent(
     agent_type: String,
 ) -> Result<Value, String> {
     state
-        .call(
-            "rimuru.agents.connect",
-            json!({ "agent_type": agent_type }),
-        )
+        .call("rimuru.agents.connect", json!({ "agent_type": agent_type }))
         .await
 }
 
@@ -56,10 +55,7 @@ pub async fn disconnect_agent(
     agent_id: String,
 ) -> Result<Value, String> {
     state
-        .call(
-            "rimuru.agents.disconnect",
-            json!({ "agent_id": agent_id }),
-        )
+        .call("rimuru.agents.disconnect", json!({ "agent_id": agent_id }))
         .await
 }
 

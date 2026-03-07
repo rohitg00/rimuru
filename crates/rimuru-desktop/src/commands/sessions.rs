@@ -22,10 +22,7 @@ pub async fn list_sessions(
 }
 
 #[tauri::command]
-pub async fn get_session(
-    state: State<'_, AppState>,
-    session_id: String,
-) -> Result<Value, String> {
+pub async fn get_session(state: State<'_, AppState>, session_id: String) -> Result<Value, String> {
     state
         .call("rimuru.sessions.get", json!({ "session_id": session_id }))
         .await

@@ -159,7 +159,9 @@ impl ClaudeCodeAdapter {
                     if let Some(out) = usage.get("output_tokens").and_then(|v| v.as_u64()) {
                         total_output += out;
                     }
-                    if let Some(cr) = usage.get("cache_read_input_tokens").and_then(|v| v.as_u64())
+                    if let Some(cr) = usage
+                        .get("cache_read_input_tokens")
+                        .and_then(|v| v.as_u64())
                     {
                         total_cache_read += cr;
                     }
@@ -302,7 +304,9 @@ impl AgentAdapter for ClaudeCodeAdapter {
     }
 
     async fn get_status(&self) -> Result<Value> {
-        let settings = self.read_settings().unwrap_or_else(|_| serde_json::json!({}));
+        let settings = self
+            .read_settings()
+            .unwrap_or_else(|_| serde_json::json!({}));
         let sessions = self.scan_session_files().unwrap_or_default();
 
         Ok(serde_json::json!({
@@ -332,7 +336,9 @@ impl AgentAdapter for ClaudeCodeAdapter {
             agent.session_count = sessions.len() as u64;
         }
 
-        let settings = self.read_settings().unwrap_or_else(|_| serde_json::json!({}));
+        let settings = self
+            .read_settings()
+            .unwrap_or_else(|_| serde_json::json!({}));
         agent.metadata = serde_json::json!({
             "settings": settings,
             "projects_dir": self.projects_dir().to_string_lossy(),

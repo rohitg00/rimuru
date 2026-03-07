@@ -89,14 +89,46 @@ pub struct LocalEquivalent {
 
 pub fn local_equivalents() -> Vec<LocalEquivalent> {
     vec![
-        LocalEquivalent { api_model_id: "claude-opus-4-6", local_name: "Llama-3.1-70B", params_b: 70.0 },
-        LocalEquivalent { api_model_id: "claude-sonnet-4-6", local_name: "Qwen2.5-14B", params_b: 14.0 },
-        LocalEquivalent { api_model_id: "claude-haiku-3-5", local_name: "Phi-3-mini-3.8B", params_b: 3.8 },
-        LocalEquivalent { api_model_id: "gpt-4o", local_name: "Mixtral-8x7B", params_b: 12.9 },
-        LocalEquivalent { api_model_id: "gpt-4o-mini", local_name: "Phi-3-mini-3.8B", params_b: 3.8 },
-        LocalEquivalent { api_model_id: "o3", local_name: "QwQ-32B", params_b: 32.0 },
-        LocalEquivalent { api_model_id: "gemini-2.5-pro", local_name: "Llama-3.1-70B", params_b: 70.0 },
-        LocalEquivalent { api_model_id: "gemini-2.5-flash", local_name: "Llama-3.2-3B", params_b: 3.0 },
+        LocalEquivalent {
+            api_model_id: "claude-opus-4-6",
+            local_name: "Llama-3.1-70B",
+            params_b: 70.0,
+        },
+        LocalEquivalent {
+            api_model_id: "claude-sonnet-4-6",
+            local_name: "Qwen2.5-14B",
+            params_b: 14.0,
+        },
+        LocalEquivalent {
+            api_model_id: "claude-haiku-3-5",
+            local_name: "Phi-3-mini-3.8B",
+            params_b: 3.8,
+        },
+        LocalEquivalent {
+            api_model_id: "gpt-4o",
+            local_name: "Mixtral-8x7B",
+            params_b: 12.9,
+        },
+        LocalEquivalent {
+            api_model_id: "gpt-4o-mini",
+            local_name: "Phi-3-mini-3.8B",
+            params_b: 3.8,
+        },
+        LocalEquivalent {
+            api_model_id: "o3",
+            local_name: "QwQ-32B",
+            params_b: 32.0,
+        },
+        LocalEquivalent {
+            api_model_id: "gemini-2.5-pro",
+            local_name: "Llama-3.1-70B",
+            params_b: 70.0,
+        },
+        LocalEquivalent {
+            api_model_id: "gemini-2.5-flash",
+            local_name: "Llama-3.2-3B",
+            params_b: 3.0,
+        },
     ]
 }
 
@@ -108,11 +140,31 @@ pub struct Quantization {
 
 pub fn quantizations() -> Vec<Quantization> {
     vec![
-        Quantization { name: "Q8_0", bpp: 8.0, speed_mult: 0.95 },
-        Quantization { name: "Q6_K", bpp: 6.57, speed_mult: 1.0 },
-        Quantization { name: "Q4_K_M", bpp: 4.83, speed_mult: 1.1 },
-        Quantization { name: "Q3_K_S", bpp: 3.44, speed_mult: 1.15 },
-        Quantization { name: "Q2_K", bpp: 2.63, speed_mult: 1.2 },
+        Quantization {
+            name: "Q8_0",
+            bpp: 8.0,
+            speed_mult: 0.95,
+        },
+        Quantization {
+            name: "Q6_K",
+            bpp: 6.57,
+            speed_mult: 1.0,
+        },
+        Quantization {
+            name: "Q4_K_M",
+            bpp: 4.83,
+            speed_mult: 1.1,
+        },
+        Quantization {
+            name: "Q3_K_S",
+            bpp: 3.44,
+            speed_mult: 1.15,
+        },
+        Quantization {
+            name: "Q2_K",
+            bpp: 2.63,
+            speed_mult: 1.2,
+        },
     ]
 }
 
@@ -131,7 +183,10 @@ pub fn estimate_tok_per_sec(params_b: f64, backend: AccelBackend, speed_mult: f6
     (base / params_b) * speed_mult
 }
 
-pub fn assess_fit(hw: &HardwareInfo, params_b: f64) -> (FitLevel, Option<String>, Option<u64>, Option<f64>) {
+pub fn assess_fit(
+    hw: &HardwareInfo,
+    params_b: f64,
+) -> (FitLevel, Option<String>, Option<u64>, Option<f64>) {
     let available_vram = hw.gpu.as_ref().map(|g| g.vram_mb).unwrap_or(0);
     let available_ram = hw.available_ram_mb;
 
@@ -140,12 +195,22 @@ pub fn assess_fit(hw: &HardwareInfo, params_b: f64) -> (FitLevel, Option<String>
 
         if available_vram > 0 && available_vram >= (required as f64 * 1.3) as u64 {
             let tok_s = estimate_tok_per_sec(params_b, hw.backend, q.speed_mult);
-            return (FitLevel::Perfect, Some(q.name.into()), Some(required), Some(tok_s));
+            return (
+                FitLevel::Perfect,
+                Some(q.name.into()),
+                Some(required),
+                Some(tok_s),
+            );
         }
 
         if available_vram > 0 && available_vram >= required {
             let tok_s = estimate_tok_per_sec(params_b, hw.backend, q.speed_mult);
-            return (FitLevel::Good, Some(q.name.into()), Some(required), Some(tok_s));
+            return (
+                FitLevel::Good,
+                Some(q.name.into()),
+                Some(required),
+                Some(tok_s),
+            );
         }
     }
 
@@ -159,7 +224,12 @@ pub fn assess_fit(hw: &HardwareInfo, params_b: f64) -> (FitLevel, Option<String>
             AccelBackend::CpuX86
         };
         let tok_s = estimate_tok_per_sec(params_b, cpu_backend, smallest_q.speed_mult);
-        return (FitLevel::Marginal, Some(smallest_q.name.into()), Some(smallest_req), Some(tok_s));
+        return (
+            FitLevel::Marginal,
+            Some(smallest_q.name.into()),
+            Some(smallest_req),
+            Some(tok_s),
+        );
     }
 
     (FitLevel::TooTight, None, None, None)

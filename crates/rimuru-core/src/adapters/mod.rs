@@ -32,7 +32,12 @@ pub trait AgentAdapter: Send + Sync {
 #[async_trait]
 pub trait CostTracker: Send + Sync {
     async fn get_usage(&self) -> Result<Value>;
-    async fn calculate_cost(&self, model: &str, input_tokens: u64, output_tokens: u64) -> Result<f64>;
+    async fn calculate_cost(
+        &self,
+        model: &str,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> Result<f64>;
     fn get_supported_models(&self) -> Vec<String>;
     async fn get_total_cost(&self) -> Result<f64>;
 }
@@ -67,7 +72,12 @@ impl<T: AdapterCore> CostTracker for T {
         }))
     }
 
-    async fn calculate_cost(&self, model: &str, input_tokens: u64, output_tokens: u64) -> Result<f64> {
+    async fn calculate_cost(
+        &self,
+        model: &str,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> Result<f64> {
         Ok(self.estimate_cost_for_model(model, input_tokens, output_tokens))
     }
 

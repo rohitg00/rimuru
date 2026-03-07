@@ -2,10 +2,11 @@ use iii_sdk::III;
 use serde_json::{json, Value};
 
 use super::sysutil::{kv_err, parse_meminfo_kb, parse_vm_stat_value, run_cmd};
-use crate::models::{
-    AccelBackend, CatalogEntry, CatalogModel, FitLevel, GpuInfo, HardwareInfo, LocalModelAdvisory, ModelInfo,
-};
 use crate::models::hardware::{assess_fit, local_equivalents};
+use crate::models::{
+    AccelBackend, CatalogEntry, CatalogModel, FitLevel, GpuInfo, HardwareInfo, LocalModelAdvisory,
+    ModelInfo,
+};
 use crate::state::StateKV;
 
 const CATALOG_JSON: &str = include_str!("../../data/local_models.json");
@@ -36,10 +37,8 @@ fn register_get(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.hardware.get", move |_input: Value| {
         let kv = kv.clone();
         async move {
-            let hw: Option<HardwareInfo> = kv
-                .get("hardware", "system_info")
-                .await
-                .map_err(kv_err)?;
+            let hw: Option<HardwareInfo> =
+                kv.get("hardware", "system_info").await.map_err(kv_err)?;
             match hw {
                 Some(h) => Ok(json!({"hardware": h})),
                 None => {
@@ -59,10 +58,8 @@ fn register_assess(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.advisor.assess", move |_input: Value| {
         let kv = kv.clone();
         async move {
-            let hw: Option<HardwareInfo> = kv
-                .get("hardware", "system_info")
-                .await
-                .map_err(kv_err)?;
+            let hw: Option<HardwareInfo> =
+                kv.get("hardware", "system_info").await.map_err(kv_err)?;
 
             let hw = match hw {
                 Some(h) => h,
@@ -75,15 +72,10 @@ fn register_assess(iii: &III, kv: &StateKV) {
                 }
             };
 
-            let models: Vec<ModelInfo> = kv
-                .list("model_info")
-                .await
-                .map_err(kv_err)?;
+            let models: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
-            let cost_summary: Option<Value> = kv
-                .get("cost_agent", "summary")
-                .await
-                .map_err(kv_err)?;
+            let cost_summary: Option<Value> =
+                kv.get("cost_agent", "summary").await.map_err(kv_err)?;
 
             let by_model = cost_summary
                 .as_ref()
@@ -144,10 +136,8 @@ fn register_catalog(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.advisor.catalog", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let hw: Option<HardwareInfo> = kv
-                .get("hardware", "system_info")
-                .await
-                .map_err(kv_err)?;
+            let hw: Option<HardwareInfo> =
+                kv.get("hardware", "system_info").await.map_err(kv_err)?;
 
             let hw = match hw {
                 Some(h) => h,
@@ -165,8 +155,9 @@ fn register_catalog(iii: &III, kv: &StateKV) {
                 .and_then(|v| v.as_str())
                 .unwrap_or("runnable");
 
-            let catalog: Vec<CatalogModel> = serde_json::from_str(CATALOG_JSON)
-                .map_err(|e| iii_sdk::IIIError::Handler(format!("Failed to parse catalog: {}", e)))?;
+            let catalog: Vec<CatalogModel> = serde_json::from_str(CATALOG_JSON).map_err(|e| {
+                iii_sdk::IIIError::Handler(format!("Failed to parse catalog: {}", e))
+            })?;
 
             let mut entries: Vec<CatalogEntry> = Vec::new();
 
@@ -196,9 +187,18 @@ fn register_catalog(iii: &III, kv: &StateKV) {
             }
 
             let total = entries.len();
-            let perfect = entries.iter().filter(|e| e.fit_level == FitLevel::Perfect).count();
-            let good = entries.iter().filter(|e| e.fit_level == FitLevel::Good).count();
-            let marginal = entries.iter().filter(|e| e.fit_level == FitLevel::Marginal).count();
+            let perfect = entries
+                .iter()
+                .filter(|e| e.fit_level == FitLevel::Perfect)
+                .count();
+            let good = entries
+                .iter()
+                .filter(|e| e.fit_level == FitLevel::Good)
+                .count();
+            let marginal = entries
+                .iter()
+                .filter(|e| e.fit_level == FitLevel::Marginal)
+                .count();
 
             Ok(json!({
                 "entries": entries,
@@ -312,7 +312,11 @@ async fn get_macos_available_ram(total_mb: u64) -> u64 {
 
     let available_bytes = (free + inactive + speculative) * page_size;
     let available_mb = available_bytes / (1024 * 1024);
-    if available_mb > 0 { available_mb } else { total_mb / 2 }
+    if available_mb > 0 {
+        available_mb
+    } else {
+        total_mb / 2
+    }
 }
 
 async fn detect_linux(os: &str, arch: &str) -> HardwareInfo {
@@ -360,7 +364,10 @@ async fn detect_linux(os: &str, arch: &str) -> HardwareInfo {
 async fn detect_linux_gpu(arch: &str) -> (Option<GpuInfo>, AccelBackend) {
     let nvidia = run_cmd(
         "nvidia-smi",
-        &["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+        &[
+            "--query-gpu=name,memory.total",
+            "--format=csv,noheader,nounits",
+        ],
     )
     .await;
 
@@ -370,7 +377,11 @@ async fn detect_linux_gpu(arch: &str) -> (Option<GpuInfo>, AccelBackend) {
             let name = parts[0].trim().to_string();
             let vram: u64 = parts[1].trim().parse().unwrap_or(0);
             return (
-                Some(GpuInfo { name, vram_mb: vram, count: 1 }),
+                Some(GpuInfo {
+                    name,
+                    vram_mb: vram,
+                    count: 1,
+                }),
                 AccelBackend::Cuda,
             );
         }
@@ -395,4 +406,3 @@ async fn detect_linux_gpu(arch: &str) -> (Option<GpuInfo>, AccelBackend) {
     };
     (None, cpu_backend)
 }
-
