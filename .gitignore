@@ -5,3 +5,4 @@ ui/dist/
 *.swo
 .DS_Store
 .env
+data/

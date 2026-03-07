@@ -3440,13 +3440,20 @@ dependencies = [
 name = "rimuru-desktop"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "dirs",
+ "iii-sdk",
  "open",
+ "rimuru-core",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-shell",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
