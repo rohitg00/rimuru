@@ -18,6 +18,10 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> =
   disabled: { bg: "bg-[var(--text-secondary)]/10", text: "text-[var(--text-secondary)]", dot: "bg-[var(--text-secondary)]" },
   completed: { bg: "bg-[var(--accent)]/15", text: "text-[var(--accent)]", dot: "bg-[var(--accent)]" },
   installed: { bg: "bg-[var(--accent)]/15", text: "text-[var(--accent)]", dot: "bg-[var(--accent)]" },
+  perfect: { bg: "bg-[var(--success)]/15", text: "text-[var(--success)]", dot: "bg-[var(--success)]" },
+  good: { bg: "bg-[var(--accent)]/15", text: "text-[var(--accent)]", dot: "bg-[var(--accent)]" },
+  marginal: { bg: "bg-[var(--warning)]/15", text: "text-[var(--warning)]", dot: "bg-[var(--warning)]" },
+  too_tight: { bg: "bg-[var(--text-secondary)]/10", text: "text-[var(--text-secondary)]", dot: "bg-[var(--text-secondary)]" },
 };
 
 const SIZE_CLASSES = {

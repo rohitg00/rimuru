@@ -1,6 +1,7 @@
 use iii_sdk::III;
 use serde_json::{json, Value};
 
+use super::sysutil::{kv_err, require_str};
 use crate::state::StateKV;
 
 pub fn register(iii: &III, kv: &StateKV) {
@@ -44,7 +45,7 @@ fn register_get(iii: &III, kv: &StateKV) {
                     let value: Option<Value> = kv
                         .get("config", k)
                         .await
-                        .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                        .map_err(kv_err)?;
 
                     let defaults = default_config();
                     let default_val = defaults.get(k);
@@ -79,7 +80,7 @@ fn register_get(iii: &III, kv: &StateKV) {
                         let stored: Option<Value> = kv
                             .get("config", k)
                             .await
-                            .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                            .map_err(kv_err)?;
 
                         match stored {
                             Some(v) => {
@@ -96,7 +97,7 @@ fn register_get(iii: &III, kv: &StateKV) {
                     let custom_keys = kv
                         .list_keys("config")
                         .await
-                        .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                        .map_err(kv_err)?;
 
                     for k in custom_keys {
                         if k.starts_with("search::") || k == "__health_probe" {
@@ -106,7 +107,7 @@ fn register_get(iii: &III, kv: &StateKV) {
                             let val: Option<Value> = kv
                                 .get("config", &k)
                                 .await
-                                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                                .map_err(kv_err)?;
                             if let Some(v) = val {
                                 merged.insert(k.clone(), v);
                                 sources.insert(k, json!("user"));
@@ -129,11 +130,7 @@ fn register_set(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.config.set", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let key = input
-                .get("key")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("key is required".into()))?
-                .to_string();
+            let key = require_str(&input, "key")?;
 
             let value = input
                 .get("value")
@@ -142,12 +139,12 @@ fn register_set(iii: &III, kv: &StateKV) {
 
             let defaults = default_config();
             if let Some(default_val) = defaults.get(&key) {
-                let type_matches = match (default_val, &value) {
-                    (Value::Bool(_), Value::Bool(_)) => true,
-                    (Value::Number(_), Value::Number(_)) => true,
-                    (Value::String(_), Value::String(_)) => true,
-                    _ => false,
-                };
+                let type_matches = matches!(
+                    (default_val, &value),
+                    (Value::Bool(_), Value::Bool(_))
+                        | (Value::Number(_), Value::Number(_))
+                        | (Value::String(_), Value::String(_))
+                );
 
                 if !type_matches {
                     return Err(iii_sdk::IIIError::Handler(format!(
@@ -162,11 +159,11 @@ fn register_set(iii: &III, kv: &StateKV) {
             let old_value: Option<Value> = kv
                 .get("config", &key)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             kv.set("config", &key, &value)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "key": key,

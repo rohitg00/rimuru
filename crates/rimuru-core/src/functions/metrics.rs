@@ -2,6 +2,7 @@ use chrono::Utc;
 use iii_sdk::III;
 use serde_json::{json, Value};
 
+use super::sysutil::{collect_cpu_usage, collect_memory_info, kv_err};
 use crate::models::{Agent, AgentStatus, MetricsHistory, Session, SessionStatus, SystemMetrics};
 use crate::state::StateKV;
 
@@ -19,7 +20,7 @@ fn register_current(iii: &III, kv: &StateKV) {
             let metrics: Option<SystemMetrics> = kv
                 .get("system_metrics", "latest")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             match metrics {
                 Some(m) => Ok(json!({"metrics": m})),
@@ -50,7 +51,7 @@ fn register_history(iii: &III, kv: &StateKV) {
             let history: Option<MetricsHistory> = kv
                 .get("system_metrics", "history")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             match history {
                 Some(mut h) => {
@@ -86,12 +87,12 @@ fn register_collect(iii: &III, kv: &StateKV) {
             let agents: Vec<Agent> = kv
                 .list("agents")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let sessions: Vec<Session> = kv
                 .list("sessions")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let active_agents = agents
                 .iter()
@@ -149,12 +150,12 @@ fn register_collect(iii: &III, kv: &StateKV) {
 
             kv.set("system_metrics", "latest", &metrics)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let mut history: MetricsHistory = kv
                 .get("system_metrics", "history")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .unwrap_or(MetricsHistory {
                     entries: vec![],
                     interval_secs: 60,
@@ -172,7 +173,7 @@ fn register_collect(iii: &III, kv: &StateKV) {
 
             kv.set("system_metrics", "history", &history)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "metrics": metrics,
@@ -182,147 +183,3 @@ fn register_collect(iii: &III, kv: &StateKV) {
     });
 }
 
-async fn collect_memory_info() -> (f64, f64) {
-    if cfg!(target_os = "macos") {
-        let output = tokio::process::Command::new("sysctl")
-            .args(["-n", "hw.memsize"])
-            .output()
-            .await;
-
-        let total_bytes: u64 = match output {
-            Ok(o) => String::from_utf8_lossy(&o.stdout)
-                .trim()
-                .parse()
-                .unwrap_or(0),
-            Err(_) => 0,
-        };
-        let total_mb = total_bytes as f64 / (1024.0 * 1024.0);
-
-        let vm_output = tokio::process::Command::new("vm_stat").output().await;
-
-        let used_mb = match vm_output {
-            Ok(o) => {
-                let text = String::from_utf8_lossy(&o.stdout);
-                let page_size: u64 = 16384;
-                let mut active: u64 = 0;
-                let mut wired: u64 = 0;
-                let mut compressed: u64 = 0;
-
-                for line in text.lines() {
-                    if line.contains("Pages active:") {
-                        active = parse_vm_stat_line(line);
-                    } else if line.contains("Pages wired down:") {
-                        wired = parse_vm_stat_line(line);
-                    } else if line.contains("Pages occupied by compressor:") {
-                        compressed = parse_vm_stat_line(line);
-                    }
-                }
-
-                ((active + wired + compressed) * page_size) as f64 / (1024.0 * 1024.0)
-            }
-            Err(_) => 0.0,
-        };
-
-        (used_mb, total_mb)
-    } else if cfg!(target_os = "linux") {
-        let output = tokio::fs::read_to_string("/proc/meminfo").await;
-
-        match output {
-            Ok(content) => {
-                let mut total_kb: u64 = 0;
-                let mut available_kb: u64 = 0;
-
-                for line in content.lines() {
-                    if line.starts_with("MemTotal:") {
-                        total_kb = parse_meminfo_value(line);
-                    } else if line.starts_with("MemAvailable:") {
-                        available_kb = parse_meminfo_value(line);
-                    }
-                }
-
-                let total_mb = total_kb as f64 / 1024.0;
-                let used_mb = (total_kb - available_kb) as f64 / 1024.0;
-                (used_mb, total_mb)
-            }
-            Err(_) => (0.0, 0.0),
-        }
-    } else {
-        (0.0, 0.0)
-    }
-}
-
-fn parse_vm_stat_line(line: &str) -> u64 {
-    line.split(':')
-        .nth(1)
-        .unwrap_or("")
-        .trim()
-        .trim_end_matches('.')
-        .parse()
-        .unwrap_or(0)
-}
-
-fn parse_meminfo_value(line: &str) -> u64 {
-    line.split_whitespace()
-        .nth(1)
-        .unwrap_or("0")
-        .parse()
-        .unwrap_or(0)
-}
-
-async fn collect_cpu_usage() -> f64 {
-    if cfg!(target_os = "macos") {
-        let output = tokio::process::Command::new("ps")
-            .args(["-A", "-o", "%cpu"])
-            .output()
-            .await;
-
-        match output {
-            Ok(o) => {
-                let text = String::from_utf8_lossy(&o.stdout);
-                let total: f64 = text
-                    .lines()
-                    .skip(1)
-                    .filter_map(|line| line.trim().parse::<f64>().ok())
-                    .sum();
-
-                let num_cpus = std::thread::available_parallelism()
-                    .map(|n| n.get() as f64)
-                    .unwrap_or(1.0);
-
-                (total / num_cpus).min(100.0)
-            }
-            Err(_) => 0.0,
-        }
-    } else if cfg!(target_os = "linux") {
-        let output = tokio::process::Command::new("grep")
-            .args(["cpu ", "/proc/stat"])
-            .output()
-            .await;
-
-        match output {
-            Ok(o) => {
-                let text = String::from_utf8_lossy(&o.stdout);
-                let parts: Vec<u64> = text
-                    .split_whitespace()
-                    .skip(1)
-                    .filter_map(|s| s.parse().ok())
-                    .collect();
-
-                if parts.len() >= 4 {
-                    let total: u64 = parts.iter().sum();
-                    let idle = parts[3];
-                    if total > 0 {
-                        ((total - idle) as f64 / total as f64) * 100.0
-                    } else {
-                        0.0
-                    }
-                } else {
-                    0.0
-                }
-            }
-            Err(_) => 0.0,
-        }
-    } else {
-        0.0
-    }
-}

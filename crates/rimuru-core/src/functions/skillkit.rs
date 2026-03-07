@@ -1,6 +1,7 @@
 use iii_sdk::III;
 use serde_json::{json, Value};
 
+use super::sysutil::{kv_err, require_str};
 use crate::state::StateKV;
 
 pub fn register(iii: &III, kv: &StateKV) {
@@ -62,11 +63,7 @@ fn register_search(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.skillkit.search", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let query = input
-                .get("query")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("query is required".into()))?
-                .to_string();
+            let query = require_str(&input, "query")?;
 
             let limit = input
                 .get("limit")
@@ -78,7 +75,7 @@ fn register_search(iii: &III, kv: &StateKV) {
             let cached: Option<Value> = kv
                 .get("config", &cache_key)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             if let Some(cached_result) = cached {
                 return Ok(json!({
@@ -90,7 +87,9 @@ fn register_search(iii: &III, kv: &StateKV) {
 
             let result = run_skillkit_command(&["search", &query, "--limit", &limit]).await?;
 
-            let _ = kv.set("config", &cache_key, &result).await;
+            if let Err(e) = kv.set("config", &cache_key, &result).await {
+                tracing::warn!("Failed to cache skillkit result for {}: {}", cache_key, e);
+            }
 
             Ok(json!({
                 "results": result,
@@ -104,11 +103,7 @@ fn register_search(iii: &III, kv: &StateKV) {
 fn register_install(iii: &III, _kv: &StateKV) {
     iii.register_function("rimuru.skillkit.install", move |input: Value| {
         async move {
-            let skill_name = input
-                .get("skill")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("skill is required".into()))?
-                .to_string();
+            let skill_name = require_str(&input, "skill")?;
 
             let agent = input
                 .get("agent")
@@ -136,17 +131,9 @@ fn register_install(iii: &III, _kv: &StateKV) {
 fn register_translate(iii: &III, _kv: &StateKV) {
     iii.register_function("rimuru.skillkit.translate", move |input: Value| {
         async move {
-            let skill_name = input
-                .get("skill")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("skill is required".into()))?
-                .to_string();
+            let skill_name = require_str(&input, "skill")?;
 
-            let target_agent = input
-                .get("target_agent")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("target_agent is required".into()))?
-                .to_string();
+            let target_agent = require_str(&input, "target_agent")?;
 
             let result =
                 run_skillkit_command(&["translate", &skill_name, "--agent", &target_agent]).await?;
@@ -201,7 +188,7 @@ fn register_recommend(iii: &III, kv: &StateKV) {
             let agents: Vec<crate::models::Agent> = kv
                 .list("agents")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let active_agent_types: Vec<String> = agents
                 .iter()

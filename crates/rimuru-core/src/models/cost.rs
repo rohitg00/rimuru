@@ -24,6 +24,7 @@ pub struct CostRecord {
 }
 
 impl CostRecord {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_id: Uuid,
         agent_type: AgentType,
@@ -94,23 +95,4 @@ pub struct DailyCostSummary {
     pub total_output_tokens: u64,
     pub record_count: u64,
     pub by_agent: Vec<AgentCostSummary>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CostFilter {
-    pub agent_id: Option<Uuid>,
-    pub agent_type: Option<AgentType>,
-    pub model: Option<String>,
-    pub since: Option<DateTime<Utc>>,
-    pub until: Option<DateTime<Utc>>,
-    pub group_by: Option<CostGroupBy>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CostGroupBy {
-    Agent,
-    Model,
-    Day,
-    Provider,
 }

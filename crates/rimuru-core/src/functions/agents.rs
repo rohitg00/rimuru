@@ -6,6 +6,7 @@ use tracing::{info, warn};
 use crate::adapters::{AgentAdapter, ClaudeCodeAdapter, CursorAdapter, CopilotAdapter, CodexAdapter, GooseAdapter, OpenCodeAdapter};
 use crate::models::{Agent, AgentConfig, AgentStatus, AgentType, CostRecord, SessionStatus};
 use crate::state::StateKV;
+use super::sysutil::{kv_err, require_str};
 
 pub fn register(iii: &III, kv: &StateKV) {
     register_list(iii, kv);
@@ -28,7 +29,7 @@ fn register_list(iii: &III, kv: &StateKV) {
             let agents: Vec<Agent> = kv
                 .list("agents")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let agent_type_filter = input
                 .get("agent_type")
@@ -45,9 +46,9 @@ fn register_list(iii: &III, kv: &StateKV) {
                 .filter(|a| {
                     agent_type_filter
                         .as_ref()
-                        .map_or(true, |t| a.agent_type == *t)
+                        .is_none_or(|t| a.agent_type == *t)
                 })
-                .filter(|a| status_filter.as_ref().map_or(true, |s| a.status == *s))
+                .filter(|a| status_filter.as_ref().is_none_or(|s| a.status == *s))
                 .collect();
 
             Ok(json!({
@@ -63,22 +64,19 @@ fn register_get(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.get", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id = require_str(&input, "agent_id")?;
 
             let agent: Option<Agent> = kv
-                .get("agents", agent_id)
+                .get("agents", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             match agent {
                 Some(a) => {
                     let config: Option<AgentConfig> = kv
-                        .get("agent_config", agent_id)
+                        .get("agent_config", &agent_id)
                         .await
-                        .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                        .map_err(kv_err)?;
 
                     Ok(json!({
                         "agent": a,
@@ -129,7 +127,7 @@ fn register_create(iii: &III, kv: &StateKV) {
 
             kv.set("agents", &agent_id, &agent)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let config = AgentConfig {
                 agent_id: agent.id,
@@ -137,7 +135,7 @@ fn register_create(iii: &III, kv: &StateKV) {
             };
             kv.set("agent_config", &agent_id, &config)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "agent": agent,
@@ -152,15 +150,12 @@ fn register_update(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.update", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id = require_str(&input, "agent_id")?;
 
             let mut agent: Agent = kv
-                .get("agents", agent_id)
+                .get("agents", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("agent not found: {}", agent_id))
                 })?;
@@ -184,9 +179,9 @@ fn register_update(iii: &III, kv: &StateKV) {
 
             agent.last_seen = Some(Utc::now());
 
-            kv.set("agents", agent_id, &agent)
+            kv.set("agents", &agent_id, &agent)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({"agent": agent}))
         }
@@ -198,26 +193,23 @@ fn register_delete(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.delete", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id = require_str(&input, "agent_id")?;
 
             let _agent: Agent = kv
-                .get("agents", agent_id)
+                .get("agents", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("agent not found: {}", agent_id))
                 })?;
 
-            kv.delete("agents", agent_id)
+            kv.delete("agents", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
-            kv.delete("agent_config", agent_id)
+            kv.delete("agent_config", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({"deleted": agent_id}))
         }
@@ -229,10 +221,7 @@ fn register_status(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.status", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id = require_str(&input, "agent_id")?;
 
             let new_status: AgentStatus = serde_json::from_value(
                 input
@@ -243,9 +232,9 @@ fn register_status(iii: &III, kv: &StateKV) {
             .map_err(|e| iii_sdk::IIIError::Handler(format!("invalid status: {}", e)))?;
 
             let mut agent: Agent = kv
-                .get("agents", agent_id)
+                .get("agents", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("agent not found: {}", agent_id))
                 })?;
@@ -258,9 +247,9 @@ fn register_status(iii: &III, kv: &StateKV) {
                 agent.connected_at = Some(Utc::now());
             }
 
-            kv.set("agents", agent_id, &agent)
+            kv.set("agents", &agent_id, &agent)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "agent_id": agent_id,
@@ -333,7 +322,9 @@ fn register_detect(iii: &III, kv: &StateKV) {
                             agent_id: agent.id,
                             ..AgentConfig::default()
                         };
-                        let _ = kv.set("agent_config", &agent_id, &config).await;
+                        if let Err(e) = kv.set("agent_config", &agent_id, &config).await {
+                            warn!("Failed to store agent config {}: {}", agent_id, e);
+                        }
                         registered = true;
                     }
                 }
@@ -359,10 +350,7 @@ fn register_connect(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.connect", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_type_str = input
-                .get("agent_type")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_type is required".into()))?;
+            let agent_type_str = require_str(&input, "agent_type")?;
 
             let agent_type: AgentType = serde_json::from_value(json!(agent_type_str))
                 .map_err(|e| iii_sdk::IIIError::Handler(format!("invalid agent_type: {}", e)))?;
@@ -377,7 +365,7 @@ fn register_connect(iii: &III, kv: &StateKV) {
                 agent.last_seen = Some(Utc::now());
                 kv.set("agents", &agent_id, &agent)
                     .await
-                    .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                    .map_err(kv_err)?;
                 return Ok(json!({"agent": agent, "action": "connected"}));
             }
 
@@ -399,14 +387,14 @@ fn register_connect(iii: &III, kv: &StateKV) {
             let agent_id = agent.id.to_string();
             kv.set("agents", &agent_id, &agent)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
             let config = AgentConfig {
                 agent_id: agent.id,
                 ..AgentConfig::default()
             };
             kv.set("agent_config", &agent_id, &config)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({"agent": agent, "action": "created_and_connected"}))
         }
@@ -418,15 +406,12 @@ fn register_disconnect(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.disconnect", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id = require_str(&input, "agent_id")?;
 
             let mut agent: Agent = kv
-                .get("agents", agent_id)
+                .get("agents", &agent_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("agent not found: {}", agent_id))
                 })?;
@@ -434,9 +419,9 @@ fn register_disconnect(iii: &III, kv: &StateKV) {
             agent.status = AgentStatus::Disconnected;
             agent.last_seen = Some(Utc::now());
 
-            kv.set("agents", agent_id, &agent)
+            kv.set("agents", &agent_id, &agent)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({"agent": agent, "action": "disconnected"}))
         }
@@ -451,6 +436,101 @@ fn get_adapter(agent_type: &AgentType) -> Option<Box<dyn AgentAdapter>> {
         AgentType::Codex => Some(Box::new(CodexAdapter::new())),
         AgentType::Goose => Some(Box::new(GooseAdapter::new())),
         AgentType::OpenCode => Some(Box::new(OpenCodeAdapter::new())),
+    }
+}
+
+struct SyncSessionResult {
+    sessions_stored: u64,
+    costs_stored: u64,
+    total_cost: f64,
+    total_tokens: u64,
+    session_count: u64,
+    has_active: bool,
+}
+
+async fn sync_agent_sessions(
+    kv: &StateKV,
+    agent: &Agent,
+    sessions: Vec<crate::models::Session>,
+) -> SyncSessionResult {
+    let mut result = SyncSessionResult {
+        sessions_stored: 0,
+        costs_stored: 0,
+        total_cost: 0.0,
+        total_tokens: 0,
+        session_count: 0,
+        has_active: false,
+    };
+
+    for mut session in sessions {
+        session.agent_id = agent.id;
+        let session_id = session.id.to_string();
+
+        result.total_cost += session.total_cost;
+        result.total_tokens += session.total_tokens;
+        result.session_count += 1;
+        if matches!(session.status, SessionStatus::Active) {
+            result.has_active = true;
+        }
+
+        if session.total_cost > 0.0 {
+            if let Some(ref model) = session.model {
+                let mut cost_record = CostRecord::new(
+                    agent.id,
+                    agent.agent_type,
+                    model.clone(),
+                    "anthropic".to_string(),
+                    session.input_tokens,
+                    session.output_tokens,
+                    session.total_cost * 0.3,
+                    session.total_cost * 0.7,
+                );
+                cost_record.recorded_at = session.started_at;
+                let record_id = cost_record.id.to_string();
+                if let Err(e) = kv.set("cost_records", &record_id, &cost_record).await {
+                    warn!("Failed to store cost record {}: {}", record_id, e);
+                }
+                result.costs_stored += 1;
+            }
+        }
+
+        if let Err(e) = kv.set("sessions", &session_id, &session).await {
+            warn!("Failed to store session {}: {}", session_id, e);
+        }
+        result.sessions_stored += 1;
+    }
+
+    result
+}
+
+async fn remove_agent(kv: &StateKV, agent_id: &str) {
+    if let Err(e) = kv.delete("agents", agent_id).await {
+        warn!("Failed to delete agent {}: {}", agent_id, e);
+    }
+    if let Err(e) = kv.delete("agent_config", agent_id).await {
+        warn!("Failed to delete agent config {}: {}", agent_id, e);
+    }
+}
+
+async fn update_agent_after_sync(
+    kv: &StateKV,
+    agent: &Agent,
+    adapter: &dyn AgentAdapter,
+    sync_result: &SyncSessionResult,
+) {
+    let agent_id = agent.id.to_string();
+    let mut updated = agent.clone();
+    updated.session_count = sync_result.session_count;
+    updated.total_cost = sync_result.total_cost;
+    updated.last_seen = Some(Utc::now());
+    updated.version = adapter.detect_version();
+    updated.status = if sync_result.has_active {
+        AgentStatus::Connected
+    } else {
+        AgentStatus::Disconnected
+    };
+    if let Err(e) = kv.set("agents", &agent_id, &updated).await {
+        warn!("Failed to update agent {}: {}", agent_id, e);
     }
 }
 
@@ -470,10 +550,10 @@ fn register_sync(iii: &III, kv: &StateKV) {
                     None => continue,
                 };
 
+                let agent_id = agent.id.to_string();
+
                 if !adapter.is_installed() {
-                    let agent_id = agent.id.to_string();
-                    let _ = kv.delete("agents", &agent_id).await;
-                    let _ = kv.delete("agent_config", &agent_id).await;
+                    remove_agent(&kv, &agent_id).await;
                     continue;
                 }
 
@@ -485,62 +565,17 @@ fn register_sync(iii: &III, kv: &StateKV) {
                     }
                 };
 
-                let mut agent_total_cost = 0.0f64;
-                let mut agent_session_count = 0u64;
-                let mut agent_total_tokens = 0u64;
-                let mut has_active_session = false;
+                let result = sync_agent_sessions(&kv, agent, sessions).await;
 
-                for mut session in sessions {
-                    session.agent_id = agent.id;
-                    let session_id = session.id.to_string();
-
-                    agent_total_cost += session.total_cost;
-                    agent_total_tokens += session.total_tokens;
-                    agent_session_count += 1;
-                    if matches!(session.status, SessionStatus::Active) {
-                        has_active_session = true;
-                    }
-
-                    if session.total_cost > 0.0 {
-                        if let Some(ref model) = session.model {
-                            let mut cost_record = CostRecord::new(
-                                agent.id,
-                                agent.agent_type,
-                                model.clone(),
-                                "anthropic".to_string(),
-                                session.input_tokens,
-                                session.output_tokens,
-                                session.total_cost * 0.3,
-                                session.total_cost * 0.7,
-                            );
-                            cost_record.recorded_at = session.started_at;
-                            let record_id = cost_record.id.to_string();
-                            let _ = kv.set("cost_records", &record_id, &cost_record).await;
-                            synced_costs += 1;
-                        }
-                    }
-
-                    let _ = kv.set("sessions", &session_id, &session).await;
-                    synced_sessions += 1;
-                }
-
-                let agent_id = agent.id.to_string();
-                if agent_session_count == 0 || (agent_total_cost == 0.0 && agent_total_tokens == 0) {
-                    let _ = kv.delete("agents", &agent_id).await;
-                    let _ = kv.delete("agent_config", &agent_id).await;
+                if result.session_count == 0 || (result.total_cost == 0.0 && result.total_tokens == 0) {
+                    remove_agent(&kv, &agent_id).await;
                     continue;
                 }
-                let mut updated_agent = agent.clone();
-                updated_agent.session_count = agent_session_count;
-                updated_agent.total_cost = agent_total_cost;
-                updated_agent.last_seen = Some(Utc::now());
-                updated_agent.version = adapter.detect_version();
-                updated_agent.status = if has_active_session {
-                    AgentStatus::Connected
-                } else {
-                    AgentStatus::Disconnected
-                };
-                let _ = kv.set("agents", &agent_id, &updated_agent).await;
+
+                update_agent_after_sync(&kv, agent, adapter.as_ref(), &result).await;
+
+                synced_sessions += result.sessions_stored;
+                synced_costs += result.costs_stored;
                 synced_agents += 1;
             }
 

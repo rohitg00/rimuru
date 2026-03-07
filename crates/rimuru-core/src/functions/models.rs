@@ -2,6 +2,7 @@ use chrono::Utc;
 use iii_sdk::III;
 use serde_json::{json, Value};
 
+use super::sysutil::{kv_err, require_str};
 use crate::models::{ModelInfo, ModelProvider, ModelSyncStatus};
 use crate::state::StateKV;
 
@@ -137,7 +138,7 @@ fn register_list(iii: &III, kv: &StateKV) {
             let stored: Vec<ModelInfo> = kv
                 .list("model_info")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let models = if stored.is_empty() {
                 hardcoded_models()
@@ -155,7 +156,7 @@ fn register_list(iii: &III, kv: &StateKV) {
                 .filter(|m| {
                     provider_filter
                         .as_ref()
-                        .map_or(true, |p| m.provider == *p)
+                        .is_none_or(|p| m.provider == *p)
                 })
                 .collect();
 
@@ -184,7 +185,7 @@ fn register_sync(iii: &III, kv: &StateKV) {
                 .filter(|m| {
                     provider_filter
                         .as_ref()
-                        .map_or(true, |p| m.provider == *p)
+                        .is_none_or(|p| m.provider == *p)
                 })
                 .collect();
 
@@ -196,7 +197,7 @@ fn register_sync(iii: &III, kv: &StateKV) {
                 let key = model.key();
                 kv.set("model_info", &key, model)
                     .await
-                    .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                    .map_err(kv_err)?;
                 synced_count += 1;
 
                 if providers_seen.insert(model.provider) {
@@ -215,7 +216,7 @@ fn register_sync(iii: &III, kv: &StateKV) {
 
                     kv.set("model_sync", provider_key, &status)
                         .await
-                        .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                        .map_err(kv_err)?;
 
                     sync_statuses.push(status);
                 }
@@ -235,15 +236,12 @@ fn register_get(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.models.get", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let model_id = input
-                .get("model_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("model_id is required".into()))?;
+            let model_id = require_str(&input, "model_id")?;
 
             let stored: Vec<ModelInfo> = kv
                 .list("model_info")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let all_models = if stored.is_empty() {
                 hardcoded_models()

@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useQuery } from "../hooks/useQuery";
-import type { ModelInfo } from "../api/types";
+import type { ModelInfo, LocalModelAdvisory } from "../api/types";
 import { formatProvider, normalizeProvider } from "../api/types";
+import StatusBadge from "../components/StatusBadge";
 
-import { formatPrice, formatContext } from "../utils/format";
+import { formatPrice, formatContext, formatCost } from "../utils/format";
 
 const PROVIDER_COLORS: Record<string, string> = {
   anthropic: "#CC785C",
@@ -15,6 +16,15 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 export default function Models() {
   const { data: models } = useQuery<ModelInfo[]>("/models", 30000);
+  const { data: advisories } = useQuery<LocalModelAdvisory[]>("/models/advisor", 60000);
+
+  const advisoryMap = useMemo(() => {
+    const map = new Map<string, LocalModelAdvisory>();
+    for (const a of advisories ?? []) {
+      map.set(a.model_id, a);
+    }
+    return map;
+  }, [advisories]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, ModelInfo[]>();
@@ -103,6 +113,15 @@ export default function Models() {
                     <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
                       Max Output
                     </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+                      Local Fit
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+                      Est. tok/s
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+                      Savings
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -138,6 +157,37 @@ export default function Models() {
                       </td>
                       <td className="px-4 py-3 text-right text-[var(--text-secondary)] font-mono">
                         {formatContext(m.max_output_tokens ?? 0)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {(() => {
+                          const adv = advisoryMap.get(m.id);
+                          if (!adv) return <span className="text-[var(--text-secondary)]">&mdash;</span>;
+                          return (
+                            <div>
+                              <StatusBadge status={adv.fit_level} size="sm" />
+                              {adv.local_equivalent && (
+                                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                                  {adv.local_equivalent}
+                                  {adv.best_quantization && ` (${adv.best_quantization})`}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-right text-[var(--text-primary)] font-mono">
+                        {(() => {
+                          const adv = advisoryMap.get(m.id);
+                          if (!adv?.estimated_tok_per_sec) return <span className="text-[var(--text-secondary)]">&mdash;</span>;
+                          return adv.estimated_tok_per_sec.toFixed(1);
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {(() => {
+                          const adv = advisoryMap.get(m.id);
+                          if (!adv || adv.potential_savings === 0) return <span className="text-[var(--text-secondary)]">&mdash;</span>;
+                          return <span className="text-[var(--success)]">{formatCost(adv.potential_savings)}</span>;
+                        })()}
                       </td>
                     </tr>
                   ))}

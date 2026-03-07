@@ -11,6 +11,34 @@ use crate::models::{
 };
 use crate::state::StateKV;
 
+use super::sysutil::{kv_err, require_str};
+
+struct AgentAccum {
+    agent_type: AgentType,
+    cost: f64,
+    input_tokens: u64,
+    output_tokens: u64,
+    count: u64,
+}
+
+struct ModelAccum {
+    cost: f64,
+    tokens: u64,
+    count: u64,
+}
+
+struct DailyAccum {
+    cost: f64,
+    input_tokens: u64,
+    output_tokens: u64,
+    count: u64,
+}
+
+struct ModelBreakdownAccum {
+    cost: f64,
+    count: u64,
+}
+
 pub fn register(iii: &III, kv: &StateKV) {
     register_record(iii, kv);
     register_summary(iii, kv);
@@ -24,12 +52,9 @@ fn register_record(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.costs.record", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id_str = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id_str = require_str(&input, "agent_id")?;
 
-            let agent_id = Uuid::parse_str(agent_id_str)
+            let agent_id = Uuid::parse_str(&agent_id_str)
                 .map_err(|e| iii_sdk::IIIError::Handler(format!("invalid agent_id: {}", e)))?;
 
             let agent_type: AgentType = serde_json::from_value(
@@ -98,7 +123,7 @@ fn register_record(iii: &III, kv: &StateKV) {
             let record_id = record.id.to_string();
             kv.set("cost_records", &record_id, &record)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let today = Utc::now().format("%Y-%m-%d").to_string();
             kv.increment(
@@ -108,10 +133,10 @@ fn register_record(iii: &III, kv: &StateKV) {
                 (record.total_cost * 100.0) as i64,
             )
             .await
-            .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+            .map_err(kv_err)?;
             kv.increment("cost_daily", &today, "record_count", 1)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let agent_cost_key = format!("{}::{}", agent_id, today);
             kv.increment(
@@ -121,7 +146,7 @@ fn register_record(iii: &III, kv: &StateKV) {
                 (record.total_cost * 100.0) as i64,
             )
             .await
-            .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+            .map_err(kv_err)?;
             kv.increment(
                 "cost_agent",
                 &agent_cost_key,
@@ -129,7 +154,7 @@ fn register_record(iii: &III, kv: &StateKV) {
                 input_tokens as i64,
             )
             .await
-            .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+            .map_err(kv_err)?;
             kv.increment(
                 "cost_agent",
                 &agent_cost_key,
@@ -137,7 +162,7 @@ fn register_record(iii: &III, kv: &StateKV) {
                 output_tokens as i64,
             )
             .await
-            .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+            .map_err(kv_err)?;
 
             Ok(json!({
                 "record": record,
@@ -155,7 +180,7 @@ fn register_summary(iii: &III, kv: &StateKV) {
             let records: Vec<CostRecord> = kv
                 .list("cost_records")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let since = input
                 .get("since")
@@ -171,33 +196,39 @@ fn register_summary(iii: &III, kv: &StateKV) {
 
             let filtered: Vec<&CostRecord> = records
                 .iter()
-                .filter(|r| since.map_or(true, |s| r.recorded_at >= s))
-                .filter(|r| until.map_or(true, |u| r.recorded_at <= u))
+                .filter(|r| since.is_none_or(|s| r.recorded_at >= s))
+                .filter(|r| until.is_none_or(|u| r.recorded_at <= u))
                 .collect();
 
             let total_cost: f64 = filtered.iter().map(|r| r.total_cost).sum();
             let total_input: u64 = filtered.iter().map(|r| r.input_tokens).sum();
             let total_output: u64 = filtered.iter().map(|r| r.output_tokens).sum();
 
-            let mut agent_map: HashMap<Uuid, (AgentType, f64, u64, u64, u64)> = HashMap::new();
+            let mut agent_map: HashMap<Uuid, AgentAccum> = HashMap::new();
             for r in &filtered {
                 let entry = agent_map
                     .entry(r.agent_id)
-                    .or_insert((r.agent_type, 0.0, 0, 0, 0));
-                entry.1 += r.total_cost;
-                entry.2 += r.input_tokens;
-                entry.3 += r.output_tokens;
-                entry.4 += 1;
+                    .or_insert(AgentAccum {
+                        agent_type: r.agent_type,
+                        cost: 0.0,
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        count: 0,
+                    });
+                entry.cost += r.total_cost;
+                entry.input_tokens += r.input_tokens;
+                entry.output_tokens += r.output_tokens;
+                entry.count += 1;
             }
 
             let agents: Vec<Agent> = kv
                 .list("agents")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let by_agent: Vec<AgentCostSummary> = agent_map
                 .iter()
-                .map(|(id, (agent_type, cost, inp, out, count))| {
+                .map(|(id, accum)| {
                     let name = agents
                         .iter()
                         .find(|a| a.id == *id)
@@ -206,34 +237,34 @@ fn register_summary(iii: &III, kv: &StateKV) {
 
                     AgentCostSummary {
                         agent_id: *id,
-                        agent_type: *agent_type,
+                        agent_type: accum.agent_type,
                         agent_name: name,
-                        total_cost: *cost,
-                        total_input_tokens: *inp,
-                        total_output_tokens: *out,
-                        record_count: *count,
+                        total_cost: accum.cost,
+                        total_input_tokens: accum.input_tokens,
+                        total_output_tokens: accum.output_tokens,
+                        record_count: accum.count,
                     }
                 })
                 .collect();
 
-            let mut model_map: HashMap<(String, String), (f64, u64, u64)> = HashMap::new();
+            let mut model_map: HashMap<(String, String), ModelAccum> = HashMap::new();
             for r in &filtered {
                 let entry = model_map
                     .entry((r.model.clone(), r.provider.clone()))
-                    .or_insert((0.0, 0, 0));
-                entry.0 += r.total_cost;
-                entry.1 += r.input_tokens + r.output_tokens;
-                entry.2 += 1;
+                    .or_insert(ModelAccum { cost: 0.0, tokens: 0, count: 0 });
+                entry.cost += r.total_cost;
+                entry.tokens += r.input_tokens + r.output_tokens;
+                entry.count += 1;
             }
 
             let by_model: Vec<ModelCostSummary> = model_map
                 .iter()
-                .map(|((model, provider), (cost, tokens, count))| ModelCostSummary {
+                .map(|((model, provider), accum)| ModelCostSummary {
                     model: model.clone(),
                     provider: provider.clone(),
-                    total_cost: *cost,
-                    total_tokens: *tokens,
-                    record_count: *count,
+                    total_cost: accum.cost,
+                    total_tokens: accum.tokens,
+                    record_count: accum.count,
                 })
                 .collect();
 
@@ -266,7 +297,7 @@ fn register_daily(iii: &III, kv: &StateKV) {
             let records: Vec<CostRecord> = kv
                 .list("cost_records")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let cutoff = Utc::now() - chrono::Duration::days(days as i64);
 
@@ -275,26 +306,31 @@ fn register_daily(iii: &III, kv: &StateKV) {
                 .filter(|r| r.recorded_at >= cutoff)
                 .collect();
 
-            let mut daily_map: HashMap<NaiveDate, (f64, u64, u64, u64)> = HashMap::new();
+            let mut daily_map: HashMap<NaiveDate, DailyAccum> = HashMap::new();
 
             for r in &filtered {
                 let date = r.recorded_at.date_naive();
-                let entry = daily_map.entry(date).or_insert((0.0, 0, 0, 0));
-                entry.0 += r.total_cost;
-                entry.1 += r.input_tokens;
-                entry.2 += r.output_tokens;
-                entry.3 += 1;
+                let entry = daily_map.entry(date).or_insert(DailyAccum {
+                    cost: 0.0,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    count: 0,
+                });
+                entry.cost += r.total_cost;
+                entry.input_tokens += r.input_tokens;
+                entry.output_tokens += r.output_tokens;
+                entry.count += 1;
             }
 
             let mut daily: Vec<Value> = daily_map
                 .iter()
-                .map(|(date, (cost, inp, out, count))| {
+                .map(|(date, accum)| {
                     json!({
                         "date": date.to_string(),
-                        "total_cost": cost,
-                        "input_tokens": inp,
-                        "output_tokens": out,
-                        "record_count": count
+                        "total_cost": accum.cost,
+                        "input_tokens": accum.input_tokens,
+                        "output_tokens": accum.output_tokens,
+                        "record_count": accum.count
                     })
                 })
                 .collect();
@@ -322,18 +358,15 @@ fn register_by_agent(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.costs.by_agent", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agent_id_str = input
-                .get("agent_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("agent_id is required".into()))?;
+            let agent_id_str = require_str(&input, "agent_id")?;
 
-            let agent_id = Uuid::parse_str(agent_id_str)
+            let agent_id = Uuid::parse_str(&agent_id_str)
                 .map_err(|e| iii_sdk::IIIError::Handler(format!("invalid agent_id: {}", e)))?;
 
             let records: Vec<CostRecord> = kv
                 .list("cost_records")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let days = input
                 .get("days")
@@ -352,22 +385,22 @@ fn register_by_agent(iii: &III, kv: &StateKV) {
             let total_input: u64 = filtered.iter().map(|r| r.input_tokens).sum();
             let total_output: u64 = filtered.iter().map(|r| r.output_tokens).sum();
 
-            let mut model_breakdown: HashMap<String, (f64, u64)> = HashMap::new();
+            let mut model_breakdown: HashMap<String, ModelBreakdownAccum> = HashMap::new();
             for r in &filtered {
                 let entry = model_breakdown
                     .entry(r.model.clone())
-                    .or_insert((0.0, 0));
-                entry.0 += r.total_cost;
-                entry.1 += 1;
+                    .or_insert(ModelBreakdownAccum { cost: 0.0, count: 0 });
+                entry.cost += r.total_cost;
+                entry.count += 1;
             }
 
             let models: Vec<Value> = model_breakdown
                 .iter()
-                .map(|(model, (cost, count))| {
+                .map(|(model, accum)| {
                     json!({
                         "model": model,
-                        "total_cost": cost,
-                        "record_count": count
+                        "total_cost": accum.cost,
+                        "record_count": accum.count
                     })
                 })
                 .collect();
@@ -405,7 +438,7 @@ fn register_daily_rollup(iii: &III, kv: &StateKV) {
             let records: Vec<CostRecord> = kv
                 .list("cost_records")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let day_records: Vec<&CostRecord> = records
                 .iter()
@@ -416,25 +449,31 @@ fn register_daily_rollup(iii: &III, kv: &StateKV) {
             let total_input: u64 = day_records.iter().map(|r| r.input_tokens).sum();
             let total_output: u64 = day_records.iter().map(|r| r.output_tokens).sum();
 
-            let mut agent_map: HashMap<Uuid, (AgentType, f64, u64, u64, u64)> = HashMap::new();
+            let mut agent_map: HashMap<Uuid, AgentAccum> = HashMap::new();
             for r in &day_records {
                 let entry = agent_map
                     .entry(r.agent_id)
-                    .or_insert((r.agent_type, 0.0, 0, 0, 0));
-                entry.1 += r.total_cost;
-                entry.2 += r.input_tokens;
-                entry.3 += r.output_tokens;
-                entry.4 += 1;
+                    .or_insert(AgentAccum {
+                        agent_type: r.agent_type,
+                        cost: 0.0,
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        count: 0,
+                    });
+                entry.cost += r.total_cost;
+                entry.input_tokens += r.input_tokens;
+                entry.output_tokens += r.output_tokens;
+                entry.count += 1;
             }
 
             let agents: Vec<Agent> = kv
                 .list("agents")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let by_agent: Vec<AgentCostSummary> = agent_map
                 .iter()
-                .map(|(id, (agent_type, cost, inp, out, count))| {
+                .map(|(id, accum)| {
                     let name = agents
                         .iter()
                         .find(|a| a.id == *id)
@@ -443,12 +482,12 @@ fn register_daily_rollup(iii: &III, kv: &StateKV) {
 
                     AgentCostSummary {
                         agent_id: *id,
-                        agent_type: *agent_type,
+                        agent_type: accum.agent_type,
                         agent_name: name,
-                        total_cost: *cost,
-                        total_input_tokens: *inp,
-                        total_output_tokens: *out,
-                        record_count: *count,
+                        total_cost: accum.cost,
+                        total_input_tokens: accum.input_tokens,
+                        total_output_tokens: accum.output_tokens,
+                        record_count: accum.count,
                     }
                 })
                 .collect();
@@ -464,7 +503,7 @@ fn register_daily_rollup(iii: &III, kv: &StateKV) {
 
             kv.set("cost_daily", &target_date.to_string(), &rollup)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "rollup": rollup,

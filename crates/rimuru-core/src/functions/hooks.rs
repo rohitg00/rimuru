@@ -1,6 +1,7 @@
 use iii_sdk::III;
 use serde_json::{json, Value};
 
+use super::sysutil::{kv_err, require_str};
 use crate::models::HookRegistration;
 use crate::state::StateKV;
 
@@ -15,18 +16,14 @@ fn register_dispatch(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.hooks.dispatch", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let event_type = input
-                .get("event_type")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("event_type is required".into()))?
-                .to_string();
+            let event_type = require_str(&input, "event_type")?;
 
             let payload = input.get("payload").cloned().unwrap_or(json!({}));
 
             let hooks: Vec<HookRegistration> = kv
                 .list("hooks")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let mut matching: Vec<&HookRegistration> = hooks
                 .iter()
@@ -80,17 +77,9 @@ fn register_register(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.hooks.register", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let event_type = input
-                .get("event_type")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("event_type is required".into()))?
-                .to_string();
+            let event_type = require_str(&input, "event_type")?;
 
-            let function_id = input
-                .get("function_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("function_id is required".into()))?
-                .to_string();
+            let function_id = require_str(&input, "function_id")?;
 
             let priority = input
                 .get("priority")
@@ -108,7 +97,7 @@ fn register_register(iii: &III, kv: &StateKV) {
             let existing: Vec<HookRegistration> = kv
                 .list("hooks")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let already_exists = existing
                 .iter()
@@ -117,7 +106,7 @@ fn register_register(iii: &III, kv: &StateKV) {
             if already_exists {
                 kv.set("hooks", &hook_key, &hook)
                     .await
-                    .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                    .map_err(kv_err)?;
 
                 Ok(json!({
                     "hook": hook,
@@ -126,7 +115,7 @@ fn register_register(iii: &III, kv: &StateKV) {
             } else {
                 kv.set("hooks", &hook_key, &hook)
                     .await
-                    .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                    .map_err(kv_err)?;
 
                 Ok(json!({
                     "hook": hook,

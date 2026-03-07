@@ -2,6 +2,7 @@ use chrono::Utc;
 use iii_sdk::III;
 use serde_json::{json, Value};
 
+use super::sysutil::{kv_err, require_str};
 use crate::models::{PluginLanguage, PluginManifest, PluginState, PluginStatus};
 use crate::state::StateKV;
 
@@ -17,11 +18,7 @@ fn register_install(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.plugins.install", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let plugin_id = input
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("id is required".into()))?
-                .to_string();
+            let plugin_id = require_str(&input, "id")?;
 
             let name = input
                 .get("name")
@@ -45,11 +42,7 @@ fn register_install(iii: &III, kv: &StateKV) {
                 .and_then(|v| serde_json::from_value(v.clone()).ok())
                 .unwrap_or(PluginLanguage::TypeScript);
 
-            let binary_path = input
-                .get("binary_path")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("binary_path is required".into()))?
-                .to_string();
+            let binary_path = require_str(&input, "binary_path")?;
 
             let functions: Vec<String> = input
                 .get("functions")
@@ -59,7 +52,7 @@ fn register_install(iii: &III, kv: &StateKV) {
             let existing: Option<PluginManifest> = kv
                 .get("plugins", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             if existing.is_some() {
                 return Err(iii_sdk::IIIError::Handler(format!(
@@ -79,7 +72,7 @@ fn register_install(iii: &III, kv: &StateKV) {
 
             kv.set("plugin_state", &plugin_id, &state)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let path = std::path::Path::new(&binary_path);
             if !path.exists() {
@@ -93,7 +86,7 @@ fn register_install(iii: &III, kv: &StateKV) {
                 };
                 kv.set("plugin_state", &plugin_id, &failed_state)
                     .await
-                    .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                    .map_err(kv_err)?;
 
                 return Err(iii_sdk::IIIError::Handler(format!(
                     "binary not found: {}",
@@ -116,7 +109,7 @@ fn register_install(iii: &III, kv: &StateKV) {
 
             kv.set("plugins", &plugin_id, &manifest)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let ready_state = PluginState {
                 plugin_id: plugin_id.clone(),
@@ -128,7 +121,7 @@ fn register_install(iii: &III, kv: &StateKV) {
             };
             kv.set("plugin_state", &plugin_id, &ready_state)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "plugin": manifest,
@@ -144,16 +137,12 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.plugins.uninstall", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let plugin_id = input
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("id is required".into()))?
-                .to_string();
+            let plugin_id = require_str(&input, "id")?;
 
             let manifest: PluginManifest = kv
                 .get("plugins", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("plugin not found: {}", plugin_id))
                 })?;
@@ -161,26 +150,29 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
             let state: Option<PluginState> = kv
                 .get("plugin_state", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             if let Some(ref s) = state {
                 if s.status == PluginStatus::Running {
                     if let Some(pid) = s.pid {
-                        let _ = tokio::process::Command::new("kill")
+                        if let Err(e) = tokio::process::Command::new("kill")
                             .arg(pid.to_string())
                             .output()
-                            .await;
+                            .await
+                        {
+                            tracing::warn!("Failed to kill plugin process {}: {}", pid, e);
+                        }
                     }
                 }
             }
 
             kv.delete("plugins", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             kv.delete("plugin_state", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "uninstalled": plugin_id,
@@ -207,16 +199,12 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.plugins.start", move |input: Value| {
         let kv = kv_start.clone();
         async move {
-            let plugin_id = input
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("id is required".into()))?
-                .to_string();
+            let plugin_id = require_str(&input, "id")?;
 
             let manifest: PluginManifest = kv
                 .get("plugins", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("plugin not found: {}", plugin_id))
                 })?;
@@ -248,7 +236,7 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
 
                     kv.set("plugin_state", &plugin_id, &state)
                         .await
-                        .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                        .map_err(kv_err)?;
 
                     Ok(json!({
                         "plugin_id": plugin_id,
@@ -268,7 +256,7 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
 
                     kv.set("plugin_state", &plugin_id, &state)
                         .await
-                        .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                        .map_err(kv_err)?;
 
                     Err(iii_sdk::IIIError::Handler(format!(
                         "failed to start plugin: {}",
@@ -283,16 +271,12 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.plugins.stop", move |input: Value| {
         let kv = kv_stop.clone();
         async move {
-            let plugin_id = input
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("id is required".into()))?
-                .to_string();
+            let plugin_id = require_str(&input, "id")?;
 
             let current_state: PluginState = kv
                 .get("plugin_state", &plugin_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?
+                .map_err(kv_err)?
                 .ok_or_else(|| {
                     iii_sdk::IIIError::Handler(format!("plugin not found: {}", plugin_id))
                 })?;
@@ -329,7 +313,7 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
 
             kv.set("plugin_state", &plugin_id, &state)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             Ok(json!({
                 "plugin_id": plugin_id,

@@ -85,6 +85,57 @@ export interface ModelInfo {
   last_synced?: string;
 }
 
+export interface HardwareInfo {
+  cpu_cores: number;
+  cpu_brand: string;
+  total_ram_mb: number;
+  available_ram_mb: number;
+  gpu: { name: string; vram_mb: number; count: number } | null;
+  backend: string;
+  os: string;
+  arch: string;
+}
+
+export interface LocalModelAdvisory {
+  model_id: string;
+  model_name: string;
+  can_run_locally: boolean;
+  fit_level: "perfect" | "good" | "marginal" | "too_tight";
+  best_quantization: string | null;
+  estimated_vram_mb: number | null;
+  estimated_tok_per_sec: number | null;
+  local_equivalent: string | null;
+  api_cost_spent: number;
+  potential_savings: number;
+}
+
+export interface CatalogEntry {
+  name: string;
+  provider: string;
+  params_b: number;
+  context_length: number;
+  use_case: string;
+  architecture: string;
+  capabilities: string[];
+  hf_downloads: number;
+  fit_level: "perfect" | "good" | "marginal" | "too_tight";
+  can_run: boolean;
+  best_quantization: string | null;
+  estimated_vram_mb: number | null;
+  estimated_tok_per_sec: number | null;
+}
+
+export interface CatalogResponse {
+  entries: CatalogEntry[];
+  total: number;
+  summary: {
+    perfect: number;
+    good: number;
+    marginal: number;
+    catalog_size: number;
+  };
+}
+
 export interface SystemMetrics {
   cpu_percent?: number;
   memory_used_mb?: number;

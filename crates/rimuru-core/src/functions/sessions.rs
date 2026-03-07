@@ -3,6 +3,7 @@ use iii_sdk::III;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use super::sysutil::{kv_err, require_str};
 use crate::models::{Agent, Session, SessionFilter, SessionStatus};
 use crate::state::StateKV;
 
@@ -22,17 +23,17 @@ fn register_list(iii: &III, kv: &StateKV) {
             let sessions: Vec<Session> = kv
                 .list("sessions")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let filter: SessionFilter = serde_json::from_value(input).unwrap_or_default();
 
             let filtered: Vec<&Session> = sessions
                 .iter()
-                .filter(|s| filter.agent_id.map_or(true, |id| s.agent_id == id))
-                .filter(|s| filter.agent_type.map_or(true, |t| s.agent_type == t))
-                .filter(|s| filter.status.map_or(true, |st| s.status == st))
-                .filter(|s| filter.since.map_or(true, |since| s.started_at >= since))
-                .filter(|s| filter.until.map_or(true, |until| s.started_at <= until))
+                .filter(|s| filter.agent_id.is_none_or(|id| s.agent_id == id))
+                .filter(|s| filter.agent_type.is_none_or(|t| s.agent_type == t))
+                .filter(|s| filter.status.is_none_or(|st| s.status == st))
+                .filter(|s| filter.since.is_none_or(|since| s.started_at >= since))
+                .filter(|s| filter.until.is_none_or(|until| s.started_at <= until))
                 .collect();
 
             let limit = filter.limit.unwrap_or(100);
@@ -52,15 +53,12 @@ fn register_get(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.sessions.get", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let session_id = input
-                .get("session_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| iii_sdk::IIIError::Handler("session_id is required".into()))?;
+            let session_id = require_str(&input, "session_id")?;
 
             let session: Option<Session> = kv
-                .get("sessions", session_id)
+                .get("sessions", &session_id)
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             match session {
                 Some(s) => {
@@ -87,7 +85,7 @@ fn register_active(iii: &III, kv: &StateKV) {
             let sessions: Vec<Session> = kv
                 .list("sessions")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let active: Vec<&Session> = sessions
                 .iter()
@@ -101,7 +99,7 @@ fn register_active(iii: &III, kv: &StateKV) {
             let agents: Vec<Agent> = kv
                 .list("agents")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             for agent in &agents {
                 let agent_sessions: Vec<&&Session> = active
@@ -139,7 +137,7 @@ fn register_history(iii: &III, kv: &StateKV) {
             let sessions: Vec<Session> = kv
                 .list("sessions")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let agent_id = input
                 .get("agent_id")
@@ -156,7 +154,7 @@ fn register_history(iii: &III, kv: &StateKV) {
             let mut history: Vec<&Session> = sessions
                 .iter()
                 .filter(|s| s.started_at >= cutoff)
-                .filter(|s| agent_id.map_or(true, |id| s.agent_id == id))
+                .filter(|s| agent_id.is_none_or(|id| s.agent_id == id))
                 .collect();
 
             history.sort_by(|a, b| b.started_at.cmp(&a.started_at));
@@ -210,7 +208,7 @@ fn register_cleanup(iii: &III, kv: &StateKV) {
             let sessions: Vec<Session> = kv
                 .list("sessions")
                 .await
-                .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                .map_err(kv_err)?;
 
             let stale: Vec<&Session> = sessions
                 .iter()
@@ -229,7 +227,7 @@ fn register_cleanup(iii: &III, kv: &StateKV) {
                 freed_cost += session.total_cost;
                 kv.delete("sessions", &session_id)
                     .await
-                    .map_err(|e| iii_sdk::IIIError::Handler(e.to_string()))?;
+                    .map_err(kv_err)?;
                 cleaned += 1;
             }
 

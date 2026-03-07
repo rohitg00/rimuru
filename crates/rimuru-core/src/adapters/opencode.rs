@@ -6,7 +6,7 @@ use serde_json::Value;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::{AgentAdapter, CostTracker, SessionMonitor};
+use super::{AdapterCore, AgentAdapter};
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentStatus, AgentType, Session, SessionStatus};
 
@@ -331,29 +331,12 @@ impl AgentAdapter for OpenCodeAdapter {
     }
 }
 
-#[async_trait]
-impl CostTracker for OpenCodeAdapter {
-    async fn get_usage(&self) -> Result<Value> {
-        let sessions = self.get_sessions().await?;
-        let total_input: u64 = sessions.iter().map(|s| s.input_tokens).sum();
-        let total_output: u64 = sessions.iter().map(|s| s.output_tokens).sum();
-        let total_cost: f64 = sessions.iter().map(|s| s.total_cost).sum();
-
-        Ok(serde_json::json!({
-            "agent_type": "opencode",
-            "total_sessions": sessions.len(),
-            "total_input_tokens": total_input,
-            "total_output_tokens": total_output,
-            "total_tokens": total_input + total_output,
-            "estimated_total_cost": total_cost,
-        }))
+impl AdapterCore for OpenCodeAdapter {
+    fn adapter_type_name(&self) -> &'static str {
+        "opencode"
     }
 
-    async fn calculate_cost(&self, model: &str, input_tokens: u64, output_tokens: u64) -> Result<f64> {
-        Ok(Self::estimate_cost(model, input_tokens, output_tokens))
-    }
-
-    fn get_supported_models(&self) -> Vec<String> {
+    fn supported_models(&self) -> Vec<String> {
         vec![
             "claude-3-5-sonnet".into(),
             "claude-3-opus".into(),
@@ -363,30 +346,7 @@ impl CostTracker for OpenCodeAdapter {
         ]
     }
 
-    async fn get_total_cost(&self) -> Result<f64> {
-        let sessions = self.get_sessions().await?;
-        Ok(sessions.iter().map(|s| s.total_cost).sum())
-    }
-}
-
-#[async_trait]
-impl SessionMonitor for OpenCodeAdapter {
-    async fn get_session_history(&self) -> Result<Vec<Session>> {
-        self.get_sessions().await
-    }
-
-    async fn get_session_details(&self, session_id: &str) -> Result<Option<Session>> {
-        let sessions = self.get_sessions().await?;
-        let target = Uuid::parse_str(session_id)
-            .map_err(|e| RimuruError::Validation(format!("Invalid session ID: {}", e)))?;
-        Ok(sessions.into_iter().find(|s| s.id == target))
-    }
-
-    async fn get_active_sessions(&self) -> Result<Vec<Session>> {
-        let sessions = self.get_sessions().await?;
-        Ok(sessions
-            .into_iter()
-            .filter(|s| matches!(s.status, SessionStatus::Active))
-            .collect())
+    fn estimate_cost_for_model(&self, model: &str, input_tokens: u64, output_tokens: u64) -> f64 {
+        Self::estimate_cost(model, input_tokens, output_tokens)
     }
 }

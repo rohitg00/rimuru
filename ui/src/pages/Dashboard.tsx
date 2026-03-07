@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { useQuery } from "../hooks/useQuery";
 import { useStream } from "../hooks/useStream";
-import type { StatsOverview, ActivityEvent, DailyCost } from "../api/types";
+import type { StatsOverview, ActivityEvent, DailyCost, LocalModelAdvisory } from "../api/types";
 import { CostBarChart } from "../components/CostChart";
 
 function StatCard({
@@ -65,7 +66,14 @@ export default function Dashboard() {
     "/activity?limit=20",
     5000,
   );
+  const { data: advisories } = useQuery<LocalModelAdvisory[]>("/models/advisor", 60000);
   const { connected } = useStream("activity");
+
+  const savingsInfo = useMemo(() => {
+    const runnable = (advisories ?? []).filter((a) => a.can_run_locally);
+    const total = runnable.reduce((sum, a) => sum + a.potential_savings, 0);
+    return { total, count: runnable.length };
+  }, [advisories]);
 
   return (
     <div className="space-y-6">
@@ -112,6 +120,12 @@ export default function Dashboard() {
           value={formatTokens(stats?.total_tokens ?? 0)}
           sub={`${stats?.models_used ?? 0} models`}
           color="var(--error)"
+        />
+        <StatCard
+          label="Potential Savings"
+          value={formatCost(savingsInfo.total)}
+          sub={`${savingsInfo.count} models can run locally`}
+          color="var(--success)"
         />
       </div>
 

@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "../hooks/useQuery";
-import type { SystemMetrics, MetricsTimeline } from "../api/types";
+import type { SystemMetrics, MetricsTimeline, HardwareInfo } from "../api/types";
 import MetricsChart, { Gauge } from "../components/MetricsChart";
 
 import { formatUptime } from "../utils/format";
 
 export default function Metrics() {
+  const { data: hwInfo } = useQuery<HardwareInfo>("/system", 0);
   const { data: rawMetrics } = useQuery<SystemMetrics>("/metrics", 2000);
   const { data: timeline } = useQuery<MetricsTimeline>(
     "/metrics/timeline?minutes=30",
@@ -103,6 +104,31 @@ export default function Metrics() {
           </div>
         )}
       </div>
+
+      {hwInfo && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">CPU</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{hwInfo.cpu_brand || "Unknown"}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{hwInfo.cpu_cores} cores</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">RAM</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{(hwInfo.total_ram_mb / 1024).toFixed(0)} GB</p>
+            <p className="text-xs text-[var(--text-secondary)]">{(hwInfo.available_ram_mb / 1024).toFixed(0)} GB available</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">GPU</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{hwInfo.gpu?.name ?? "No GPU"}</p>
+            {hwInfo.gpu && <p className="text-xs text-[var(--text-secondary)]">{(hwInfo.gpu.vram_mb / 1024).toFixed(0)} GB VRAM</p>}
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">Backend</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{hwInfo.backend.replace("_", " ").toUpperCase()}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{hwInfo.os} / {hwInfo.arch}</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-center gap-8 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-8">
         <Gauge

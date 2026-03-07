@@ -220,6 +220,41 @@ async fn api_costs_list(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
+async fn api_system_info(State(state): State<AppState>) -> impl IntoResponse {
+    match call_function(&state.kv, "rimuru.hardware.get", json!({})).await {
+        Ok(v) => Json(unwrap_field(v, "hardware")).into_response(),
+        Err(s) => s.into_response(),
+    }
+}
+
+async fn api_system_detect(State(state): State<AppState>) -> impl IntoResponse {
+    match call_function(&state.kv, "rimuru.hardware.detect", json!({})).await {
+        Ok(v) => Json(unwrap_field(v, "hardware")).into_response(),
+        Err(s) => s.into_response(),
+    }
+}
+
+async fn api_models_advisor(State(state): State<AppState>) -> impl IntoResponse {
+    match call_function(&state.kv, "rimuru.advisor.assess", json!({})).await {
+        Ok(v) => Json(unwrap_field(v, "advisories")).into_response(),
+        Err(s) => s.into_response(),
+    }
+}
+
+async fn api_models_catalog(State(state): State<AppState>) -> impl IntoResponse {
+    match call_function(&state.kv, "rimuru.advisor.catalog", json!({"filter": "all"})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(s) => s.into_response(),
+    }
+}
+
+async fn api_models_catalog_runnable(State(state): State<AppState>) -> impl IntoResponse {
+    match call_function(&state.kv, "rimuru.advisor.catalog", json!({"filter": "runnable"})).await {
+        Ok(v) => Json(v).into_response(),
+        Err(s) => s.into_response(),
+    }
+}
+
 async fn api_models_list(State(state): State<AppState>) -> impl IntoResponse {
     match call_function(&state.kv, "rimuru.models.list", json!({})).await {
         Ok(v) => Json(unwrap_field(v, "models")).into_response(),
@@ -307,11 +342,11 @@ async fn api_hooks_dispatch(
 }
 
 async fn api_hooks_update(Path(_id): Path<String>) -> impl IntoResponse {
-    Json(json!({"status": "ok"}))
+    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "hook update not yet implemented"}))).into_response()
 }
 
 async fn api_hooks_executions() -> impl IntoResponse {
-    Json(json!([]))
+    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "hook executions not yet implemented"}))).into_response()
 }
 
 async fn api_plugins_list() -> impl IntoResponse {
@@ -345,7 +380,7 @@ async fn api_plugins_toggle(
     let enabled = action == "enable";
     match call_function(&state.kv, "rimuru.plugins.toggle", json!({"plugin_id": id, "enabled": enabled})).await {
         Ok(v) => Json(v).into_response(),
-        Err(_) => Json(json!({"status": "ok", "enabled": enabled})).into_response(),
+        Err(s) => s.into_response(),
     }
 }
 
@@ -565,7 +600,12 @@ fn router(state: AppState) -> Router {
         .route("/api/costs/daily", get(api_costs_daily))
         .route("/api/costs/agent/{id}", get(api_costs_by_agent))
         .route("/api/costs", get(api_costs_list).post(api_costs_record))
+        .route("/api/system", get(api_system_info))
+        .route("/api/system/detect", post(api_system_detect))
         .route("/api/models", get(api_models_list))
+        .route("/api/models/advisor", get(api_models_advisor))
+        .route("/api/models/catalog", get(api_models_catalog))
+        .route("/api/models/catalog/runnable", get(api_models_catalog_runnable))
         .route("/api/models/sync", post(api_models_sync))
         .route("/api/models/{id}", get(api_models_get))
         .route("/api/metrics", get(api_metrics_current))

@@ -23,6 +23,12 @@ struct HookHandler {
     priority: i32,
 }
 
+impl Default for HookRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HookRegistry {
     pub fn new() -> Self {
         Self {

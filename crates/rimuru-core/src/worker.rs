@@ -98,6 +98,22 @@ impl RimuruWorker {
             Err(e) => tracing::warn!("Failed to collect initial metrics: {}", e),
         }
 
+        match self
+            .iii
+            .trigger("rimuru.hardware.detect", serde_json::json!({}))
+            .await
+        {
+            Ok(result) => {
+                let backend = result
+                    .get("hardware")
+                    .and_then(|h| h.get("backend"))
+                    .and_then(|b| b.as_str())
+                    .unwrap_or("unknown");
+                info!("Hardware detected (backend: {})", backend);
+            }
+            Err(e) => tracing::warn!("Failed to detect hardware: {}", e),
+        }
+
         info!("Rimuru worker is ready");
         Ok(())
     }
