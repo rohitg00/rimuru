@@ -1,60 +1,47 @@
-# Rimuru - AI Agent Orchestration and Cost Tracking Platform
-# Multi-stage build for minimal image size
-
-# Build stage
 FROM rust:1.83-slim-bookworm AS builder
 
 WORKDIR /app
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace files
 COPY Cargo.toml Cargo.lock ./
-COPY rimuru-core ./rimuru-core
-COPY rimuru-cli ./rimuru-cli
-COPY rimuru-tui ./rimuru-tui
-COPY rimuru-plugin-sdk ./rimuru-plugin-sdk
+COPY crates ./crates
+COPY ui ./ui
 
-# Build release binaries
-RUN cargo build --release -p rimuru-cli -p rimuru-tui
+RUN cd ui && npm ci && npm run build
+RUN cargo build --release -p rimuru-core -p rimuru-cli
 
-# Runtime stage
 FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.title="Rimuru"
-LABEL org.opencontainers.image.description="A unified AI agent orchestration and cost tracking platform"
+LABEL org.opencontainers.image.description="AI agent cost monitor powered by iii-engine"
 LABEL org.opencontainers.image.authors="Rohit Ghumare <ghumare64@gmail.com>"
 LABEL org.opencontainers.image.source="https://github.com/rohitg00/rimuru"
-LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.licenses="MIT"
 
-# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
 RUN useradd -m -u 1000 rimuru
 
-# Copy binaries from builder
+COPY --from=builder /app/target/release/rimuru-worker /usr/local/bin/rimuru-worker
 COPY --from=builder /app/target/release/rimuru /usr/local/bin/rimuru
-COPY --from=builder /app/target/release/rimuru-tui /usr/local/bin/rimuru-tui
 
-# Set ownership
-RUN chown rimuru:rimuru /usr/local/bin/rimuru /usr/local/bin/rimuru-tui
+RUN chown rimuru:rimuru /usr/local/bin/rimuru-worker /usr/local/bin/rimuru
 
-# Switch to non-root user
 USER rimuru
 WORKDIR /home/rimuru
 
-# Default environment variables
-ENV DATABASE_URL=""
-ENV RIMURU_LOG_LEVEL="info"
+ENV RIMURU_ENGINE_URL="ws://127.0.0.1:49134"
+ENV RIMURU_API_PORT="3100"
+ENV RUST_LOG="rimuru=info"
 
-# Default command
-ENTRYPOINT ["rimuru"]
-CMD ["--help"]
+EXPOSE 3100
+
+ENTRYPOINT ["rimuru-worker"]
