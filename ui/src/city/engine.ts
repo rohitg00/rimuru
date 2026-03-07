@@ -39,6 +39,7 @@ export class CityEngine {
   }
 
   start(): void {
+    if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
     const loop = (time: number) => {

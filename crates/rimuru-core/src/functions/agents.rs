@@ -475,15 +475,23 @@ async fn sync_agent_sessions(
 
         if session.total_cost > 0.0 {
             if let Some(ref model) = session.model {
-                let mut cost_record = CostRecord::new(
+                let provider = match agent.agent_type {
+                    AgentType::ClaudeCode => "anthropic",
+                    AgentType::Cursor | AgentType::Copilot | AgentType::Codex => "openai",
+                    AgentType::Goose | AgentType::OpenCode => "unknown",
+                };
+                let total_tokens = session.input_tokens + session.output_tokens;
+                let input_ratio = if total_tokens > 0 { session.input_tokens as f64 / total_tokens as f64 } else { 0.3 };
+                let mut cost_record = CostRecord::new_for_session(
+                    session.id,
                     agent.id,
                     agent.agent_type,
                     model.clone(),
-                    "anthropic".to_string(),
+                    provider.to_string(),
                     session.input_tokens,
                     session.output_tokens,
-                    session.total_cost * 0.3,
-                    session.total_cost * 0.7,
+                    session.total_cost * input_ratio,
+                    session.total_cost * (1.0 - input_ratio),
                 );
                 cost_record.recorded_at = session.started_at;
                 let record_id = cost_record.id.to_string();

@@ -164,12 +164,12 @@ export function updateCharacter(char: CityCharacter, dt: number): void {
       const dy = targetPy - char.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist < 1) {
+      const step = WALK_SPEED * dt;
+      if (dist <= step) {
         char.x = targetPx;
         char.y = targetPy;
         char.path.shift();
       } else {
-        const step = WALK_SPEED * dt;
         char.x += (dx / dist) * step;
         char.y += (dy / dist) * step;
       }
@@ -209,6 +209,7 @@ export function updateCharacterStatus(
     char.fading = true;
     return;
   }
+  char.fading = false;
   if (newStatus === "error") {
     char.state = "IDLE";
     char.path = [];

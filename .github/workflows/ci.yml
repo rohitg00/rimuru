@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, rimuru-iii]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -42,7 +42,7 @@ jobs:
         with:
           components: clippy
 
-      - name: Cache cargo registry
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
@@ -54,11 +54,11 @@ jobs:
             ${{ runner.os }}-cargo-clippy-
             ${{ runner.os }}-cargo-
 
-      - name: Create frontend dist stub
-        run: mkdir -p rimuru-desktop/dist && echo '<html></html>' > rimuru-desktop/dist/index.html
+      - name: Create UI dist stub
+        run: mkdir -p ui/dist && echo '<html></html>' > ui/dist/index.html
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
   test:
     name: Test
@@ -75,7 +75,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
@@ -87,28 +87,58 @@ jobs:
             ${{ runner.os }}-cargo-test-
             ${{ runner.os }}-cargo-
 
-      - name: Create frontend dist stub
-        run: mkdir -p rimuru-desktop/dist && echo '<html></html>' > rimuru-desktop/dist/index.html
+      - name: Create UI dist stub
+        run: mkdir -p ui/dist && echo '<html></html>' > ui/dist/index.html
 
       - name: Run tests
         run: cargo test --all --lib --bins
 
+  ui:
+    name: UI Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install and build
+        working-directory: ui
+        run: npm ci && npm run build
+
+      - name: Upload UI dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
+          retention-days: 1
+
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, ui]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
-      - name: Cache cargo registry
+      - name: Download UI dist
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
+
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
@@ -121,33 +151,35 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build release binaries
-        run: cargo build --release -p rimuru-cli -p rimuru-tui
+        run: cargo build --release -p rimuru-core -p rimuru-cli -p rimuru-tui
 
-      - name: Upload CLI binary
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rimuru-cli-linux-x64
-          path: target/release/rimuru
-          retention-days: 7
-
-      - name: Upload TUI binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: rimuru-tui-linux-x64
-          path: target/release/rimuru-tui
+          name: rimuru-linux-x64
+          path: |
+            target/release/rimuru-worker
+            target/release/rimuru
+            target/release/rimuru-tui
           retention-days: 7
 
   build-macos:
     name: Build macOS
     runs-on: macos-latest
-    needs: test
+    needs: [test, ui]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry
+      - name: Download UI dist
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
+
+      - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
@@ -160,65 +192,22 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build release binaries
-        run: cargo build --release -p rimuru-cli -p rimuru-tui
+        run: cargo build --release -p rimuru-core -p rimuru-cli -p rimuru-tui
 
-      - name: Upload CLI binary
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rimuru-cli-macos-x64
-          path: target/release/rimuru
-          retention-days: 7
-
-      - name: Upload TUI binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: rimuru-tui-macos-x64
-          path: target/release/rimuru-tui
-          retention-days: 7
-
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
+          name: rimuru-macos-x64
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-release-
-            ${{ runner.os }}-cargo-
-
-      - name: Build release binaries
-        run: cargo build --release -p rimuru-cli -p rimuru-tui
-
-      - name: Upload CLI binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: rimuru-cli-windows-x64
-          path: target/release/rimuru.exe
-          retention-days: 7
-
-      - name: Upload TUI binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: rimuru-tui-windows-x64
-          path: target/release/rimuru-tui.exe
+            target/release/rimuru-worker
+            target/release/rimuru
+            target/release/rimuru-tui
           retention-days: 7
 
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [fmt, clippy, test, build-linux, build-macos, build-windows]
+    needs: [fmt, clippy, test, ui, build-linux, build-macos]
     if: always()
     steps:
       - name: Check all jobs
@@ -226,9 +215,9 @@ jobs:
           if [[ "${{ needs.fmt.result }}" == "failure" ]] || \
              [[ "${{ needs.clippy.result }}" == "failure" ]] || \
              [[ "${{ needs.test.result }}" == "failure" ]] || \
+             [[ "${{ needs.ui.result }}" == "failure" ]] || \
              [[ "${{ needs.build-linux.result }}" == "failure" ]] || \
-             [[ "${{ needs.build-macos.result }}" == "failure" ]] || \
-             [[ "${{ needs.build-windows.result }}" == "failure" ]]; then
+             [[ "${{ needs.build-macos.result }}" == "failure" ]]; then
             echo "One or more CI jobs failed"
             exit 1
           fi

@@ -44,9 +44,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    let result = run_app(&mut terminal, &client, events, args.theme).await;
+
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+
+    result
+}
+
+async fn run_app(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    client: &Arc<ApiClient>,
+    events: EventReader,
+    theme_index: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new();
-    if args.theme < theme::THEMES.len() {
-        app.theme_index = args.theme;
+    if theme_index < theme::THEMES.len() {
+        app.theme_index = theme_index;
     }
 
     let (tx, mut rx) = mpsc::unbounded_channel::<RefreshResult>();
@@ -54,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_refresh = Instant::now();
     let refresh_interval = std::time::Duration::from_secs(2);
 
-    spawn_refresh(Arc::clone(&client), app.current_tab, tx.clone());
+    spawn_refresh(Arc::clone(client), app.current_tab, tx.clone());
 
     loop {
         terminal.draw(|f| ui::render(f, &app))?;
@@ -102,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCode::Char('k') | KeyCode::Up => app.scroll_up(),
                     KeyCode::Char('t') => app.next_theme(),
                     KeyCode::Char('r') => {
-                        spawn_refresh(Arc::clone(&client), app.current_tab, tx.clone());
+                        spawn_refresh(Arc::clone(client), app.current_tab, tx.clone());
                         last_refresh = Instant::now();
                     }
                     KeyCode::Char('/') => {
@@ -113,28 +128,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCode::Char(c) if c.is_ascii_digit() => {
                         if let Some(tab) = app::Tab::from_key(c) {
                             app.switch_tab(tab);
-                            spawn_refresh(Arc::clone(&client), tab, tx.clone());
+                            spawn_refresh(Arc::clone(client), tab, tx.clone());
                             last_refresh = Instant::now();
                         }
                     }
                     KeyCode::Enter => {
-                        handle_enter(&mut app, &client, &tx).await;
+                        handle_enter(&mut app, client, &tx).await;
                     }
                     _ => {}
                 }
             }
             AppEvent::Tick => {
                 if last_refresh.elapsed() >= refresh_interval {
-                    spawn_refresh(Arc::clone(&client), app.current_tab, tx.clone());
+                    spawn_refresh(Arc::clone(client), app.current_tab, tx.clone());
                     last_refresh = Instant::now();
                 }
             }
         }
     }
-
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
 
     Ok(())
 }
