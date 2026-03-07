@@ -1,78 +1,45 @@
----
-type: reference
-title: Building from Source
-created: 2026-02-05
-tags:
-  - building
-  - development
-  - developer-guide
-related:
-  - "[[architecture]]"
-  - "[[contributing]]"
----
-
 # Building from Source
-
-This guide covers how to build Rimuru from source on Linux, macOS, and Windows.
 
 ## Prerequisites
 
-### Required Tools
-
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Rust | 1.75+ | Compiler and cargo |
-| PostgreSQL | 14+ | Database |
-| Node.js | 18+ | Desktop app frontend |
-| pnpm | 8+ | Desktop app package manager |
+| Rust | 1.83+ | Compiler and cargo |
+| iii engine | latest | Runtime engine ([iii-hq/iii](https://github.com/iii-hq/iii)) |
+| Node.js | 18+ | Web UI build (optional) |
 
-### Installing Rust
+No database required. Rimuru uses in-memory KV state.
+
+### Install Rust
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup default stable
-rustup update
 ```
 
-### Installing PostgreSQL
-
-**macOS (Homebrew):**
-```bash
-brew install postgresql@16
-brew services start postgresql@16
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-sudo systemctl start postgresql
-```
-
-**Windows:**
-Download from https://www.postgresql.org/download/windows/
-
-### Installing Node.js and pnpm
+### Install iii Engine
 
 ```bash
-# Using nvm (recommended)
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install 18
-nvm use 18
-
-# Install pnpm
-corepack enable
-corepack prepare pnpm@latest --activate
+# Auto-detect platform and install
+curl -fsSL https://raw.githubusercontent.com/rohitg00/rimuru/main/install.sh | bash
 ```
 
-## Clone the Repository
+Or download manually from [iii-hq/iii releases](https://github.com/iii-hq/iii/releases).
+
+## Clone and Build
 
 ```bash
 git clone https://github.com/rohitg00/rimuru.git
 cd rimuru
 ```
 
-## Building Core Crates
+### Create UI Dist Stub
+
+The worker embeds the Web UI via `include_str!()`. For compilation without building the UI:
+
+```bash
+mkdir -p ui/dist && echo '<html></html>' > ui/dist/index.html
+```
 
 ### Debug Build
 
@@ -80,267 +47,76 @@ cd rimuru
 cargo build
 ```
 
-This builds all workspace members in debug mode.
-
 ### Release Build
 
 ```bash
 cargo build --release
 ```
 
-Release binaries are placed in `target/release/`.
+Binaries: `target/release/rimuru-worker`, `target/release/rimuru`, `target/release/rimuru-tui`
 
 ### Build Specific Crate
 
 ```bash
-# Core library only
-cargo build -p rimuru-core
-
-# CLI only
-cargo build -p rimuru-cli
-
-# TUI only
-cargo build -p rimuru-tui
+cargo build -p rimuru-core      # Worker
+cargo build -p rimuru-cli       # CLI
+cargo build -p rimuru-tui       # TUI
+cargo build -p rimuru-desktop   # Desktop (requires Tauri deps)
 ```
 
-## Running Tests
+## Building the Web UI
 
-### All Tests
+```bash
+cd ui
+npm install
+npm run build
+```
+
+Output goes to `ui/dist/` and gets embedded in the worker binary on next `cargo build`.
+
+## Building the Desktop App
+
+### System Dependencies
+
+**Linux:**
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+**macOS:** Xcode Command Line Tools (`xcode-select --install`)
+
+### Build
+
+```bash
+cd crates/rimuru-desktop
+cargo tauri build
+```
+
+Outputs: `.dmg` (macOS), `.AppImage` (Linux), `.msi` (Windows)
+
+## Running Tests
 
 ```bash
 cargo test --all
 ```
 
-### Specific Crate Tests
-
-```bash
-cargo test -p rimuru-core
-cargo test -p rimuru-cli
-cargo test -p rimuru-tui
-```
-
-### Integration Tests
-
-Integration tests require a PostgreSQL database:
-
-```bash
-# Start test database with Docker
-docker compose -f tests/docker-compose.yml up -d
-
-# Run integration tests
-cargo test --test '*' -- --ignored
-```
-
-### Test with Coverage
-
-```bash
-cargo install cargo-tarpaulin
-cargo tarpaulin --out Html
-```
-
-## Building the TUI
-
-The TUI uses Ratatui for terminal rendering:
-
-```bash
-cargo build -p rimuru-tui --release
-./target/release/rimuru-tui
-```
-
-## Building the Desktop App
-
-The desktop app uses Tauri with a React frontend.
-
-### Prerequisites
-
-**Linux:**
-```bash
-sudo apt install libwebkit2gtk-4.1-dev \
-    build-essential \
-    curl \
-    wget \
-    file \
-    libssl-dev \
-    libgtk-3-dev \
-    libayatana-appindicator3-dev \
-    librsvg2-dev
-```
-
-**macOS:**
-Xcode Command Line Tools are required:
-```bash
-xcode-select --install
-```
-
-**Windows:**
-- Visual Studio Build Tools with C++ support
-- WebView2 runtime
-
-### Build Desktop App
-
-```bash
-cd rimuru-desktop
-
-# Install frontend dependencies
-pnpm install
-
-# Development mode
-pnpm tauri dev
-
-# Production build
-pnpm tauri build
-```
-
-Build outputs:
-- macOS: `src-tauri/target/release/bundle/dmg/`
-- Linux: `src-tauri/target/release/bundle/appimage/`
-- Windows: `src-tauri/target/release/bundle/msi/`
-
-## Building Documentation
-
-### Rust API Documentation
-
-```bash
-cargo doc --no-deps --document-private-items
-open target/doc/rimuru_core/index.html
-```
-
-### User Documentation
-
-User docs are in `docs/user-guide/` as Markdown files.
-
 ## Development Workflow
 
-### Code Formatting
-
 ```bash
-# Check formatting
-cargo fmt --check
+# Format
+cargo fmt --all
 
-# Apply formatting
-cargo fmt
-```
-
-### Linting
-
-```bash
-# Check for issues
-cargo clippy --all-targets
-
-# With warnings as errors
+# Lint
 cargo clippy --all-targets -- -D warnings
-```
 
-### Pre-commit Checks
-
-Run before committing:
-
-```bash
-# Format, lint, test
-cargo fmt && cargo clippy --all-targets && cargo test --all
+# Pre-commit check
+cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test --all
 ```
 
 ## Environment Variables
 
-Required for building/running:
-
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection URL | Required |
-| `RUST_LOG` | Log level (debug, info, warn, error) | `warn` |
-
-Optional:
-
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | For Anthropic model sync |
-| `OPENAI_API_KEY` | For OpenAI model sync |
-| `GOOGLE_AI_API_KEY` | For Google model sync |
-
-## Build Profiles
-
-### Debug Profile (default)
-
-```toml
-[profile.dev]
-opt-level = 0
-debug = true
-```
-
-### Release Profile
-
-```toml
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-strip = true
-```
-
-### Bench Profile
-
-```toml
-[profile.bench]
-opt-level = 3
-debug = true
-```
-
-## Troubleshooting
-
-### OpenSSL Issues (Linux)
-
-```bash
-# Ubuntu/Debian
-sudo apt install pkg-config libssl-dev
-
-# Fedora
-sudo dnf install openssl-devel
-```
-
-### SQLx Compile-Time Verification
-
-SQLx verifies queries at compile time. Set `DATABASE_URL` or use offline mode:
-
-```bash
-# Generate query cache
-cargo sqlx prepare --workspace
-
-# Build without database connection
-SQLX_OFFLINE=true cargo build
-```
-
-### Tauri Build Fails
-
-Ensure all system dependencies are installed. Check the Tauri docs:
-https://tauri.app/v1/guides/getting-started/prerequisites
-
-### Memory Issues During Build
-
-For large projects, limit parallel jobs:
-
-```bash
-cargo build -j 4  # Limit to 4 parallel jobs
-```
-
-## Cross-Compilation
-
-### Linux → Windows
-
-```bash
-rustup target add x86_64-pc-windows-gnu
-cargo build --target x86_64-pc-windows-gnu --release
-```
-
-### Linux → macOS
-
-Requires osxcross:
-```bash
-rustup target add x86_64-apple-darwin
-cargo build --target x86_64-apple-darwin --release
-```
-
-## See Also
-
-- [[architecture]] - System architecture overview
-- [[contributing]] - Contribution guidelines
-- [[api-reference]] - API documentation
+| `RIMURU_ENGINE_URL` | iii engine WebSocket URL | `ws://127.0.0.1:49134` |
+| `RIMURU_PORT` | HTTP server port | `3100` |
+| `RUST_LOG` | Log level | `info` |
