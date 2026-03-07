@@ -1,300 +1,109 @@
 # Contributing to Rimuru
 
-Thank you for your interest in contributing to Rimuru! This document provides guidelines and instructions for contributing.
-
-## Table of Contents
-
-- [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
-- [Making Changes](#making-changes)
-- [Code Style](#code-style)
-- [Testing](#testing)
-- [Submitting Changes](#submitting-changes)
-- [Review Process](#review-process)
-
-## Getting Started
-
-### Types of Contributions
-
-We welcome several types of contributions:
-
-- **Bug Reports**: Found a bug? Open an issue with details
-- **Feature Requests**: Have an idea? Open an issue to discuss
-- **Code Contributions**: Fix bugs or implement features
-- **Documentation**: Improve docs, fix typos, add examples
-- **Testing**: Add tests, improve coverage, report edge cases
-
-### Good First Issues
-
-Look for issues labeled [`good first issue`](https://github.com/rohitg00/rimuru/labels/good%20first%20issue) - these are great for newcomers.
+Thank you for your interest in contributing to Rimuru!
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Rust**: 1.75 or later
-- **PostgreSQL**: 14 or later
-- **Node.js**: 18+ (for desktop app)
+- **Rust**: 1.83+
+- **iii engine**: [iii-hq/iii](https://github.com/iii-hq/iii) (installed automatically by `install.sh`)
+- **Node.js**: 18+ (for Web UI development)
 
-### Setup Steps
+No database required. Rimuru uses iii-engine's in-memory KV state.
+
+### Setup
 
 ```bash
-# Clone your fork
 git clone https://github.com/YOUR_USERNAME/rimuru.git
 cd rimuru
 
-# Add upstream remote
-git remote add upstream https://github.com/rohitg00/rimuru.git
+# Install iii engine if not already installed
+curl -fsSL https://raw.githubusercontent.com/rohitg00/rimuru/main/install.sh | bash
 
-# Create database
-createdb rimuru_dev
+# Create UI dist stub (needed for compilation)
+mkdir -p ui/dist && echo '<html></html>' > ui/dist/index.html
 
-# Configure environment
-cp .env.example .env
-echo "DATABASE_URL=postgres://localhost/rimuru_dev" > .env
-
-# Build and verify
+# Build
 cargo build
-cargo test
+
+# Run checks
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test --all
 ```
 
 ### Running Locally
 
 ```bash
+# Start iii engine
+iii
+
+# Start the worker (in another terminal)
+cargo run -p rimuru-core --release
+
 # CLI
-cargo run --bin rimuru -- status
+cargo run -p rimuru-cli -- health
 
 # TUI
-cargo run --bin rimuru-tui
+cargo run -p rimuru-tui --release
 
-# Desktop (requires npm install first)
-cd rimuru-desktop
-npm install
-npm run tauri dev
+# Desktop (Tauri v2)
+cd crates/rimuru-desktop
+cargo tauri dev
 ```
 
 ## Making Changes
 
-### Branching Strategy
-
-```bash
-# Sync with upstream
-git fetch upstream
-git checkout main
-git merge upstream/main
-
-# Create feature branch
-git checkout -b feature/your-feature-name
-
-# Or for bug fixes
-git checkout -b fix/bug-description
-```
-
 ### Branch Naming
 
-- `feature/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation changes
-- `refactor/` - Code refactoring
-- `test/` - Test additions/changes
-- `chore/` - Maintenance tasks
+```bash
+git checkout -b feature/your-feature-name
+git checkout -b fix/bug-description
+git checkout -b docs/documentation-changes
+```
 
-## Code Style
-
-### Rust
-
-We follow standard Rust conventions:
+### Code Style
 
 ```bash
-# Format code
-cargo fmt
-
-# Check lints
-cargo clippy --all-targets -- -D warnings
+cargo fmt --all          # Format
+cargo clippy --all-targets -- -D warnings  # Lint
 ```
-
-**Guidelines:**
-- Use `thiserror` for error types
-- Prefer `async` for I/O operations
-- Write doc comments for public APIs
-- Use meaningful variable names
-- Keep functions focused and small
-
-### TypeScript (Desktop)
-
-```bash
-cd rimuru-desktop
-npm run lint
-npm run format
-```
-
-**Guidelines:**
-- Use TypeScript strict mode
-- Prefer functional components with hooks
-- Use proper type annotations
-- Follow React best practices
-
-### Commit Messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-type(scope): description
-
-[optional body]
-
-[optional footer]
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation
-- `style`: Formatting (no code change)
-- `refactor`: Code restructuring
-- `test`: Adding tests
-- `chore`: Maintenance
-
-**Examples:**
-```
-feat(cli): add session export command
-fix(tui): correct scroll behavior in agent list
-docs(readme): update installation instructions
-test(core): add adapter trait tests
-```
-
-## Testing
-
-### Running Tests
-
-```bash
-# All tests
-cargo test --all
-
-# Specific crate
-cargo test -p rimuru-core
-
-# With output
-cargo test -- --nocapture
-
-# Integration tests (requires database)
-cargo test --test '*'
-```
-
-### Writing Tests
-
-**Unit Tests:**
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_agent_creation() {
-        let agent = Agent::new("test", AgentType::Claude);
-        assert_eq!(agent.name, "test");
-    }
-
-    #[tokio::test]
-    async fn test_async_operation() {
-        let result = fetch_data().await;
-        assert!(result.is_ok());
-    }
-}
-```
-
-**Integration Tests:**
-Place in `tests/integration/` directory.
-
-### Coverage
-
-Aim for 70%+ coverage on new code. Run coverage locally:
-
-```bash
-cargo install cargo-tarpaulin
-cargo tarpaulin --all-features
-```
-
-## Submitting Changes
 
 ### Before Submitting
 
-1. **Sync with upstream:**
-   ```bash
-   git fetch upstream
-   git rebase upstream/main
-   ```
+1. Run `cargo fmt --all -- --check`
+2. Run `cargo clippy --all-targets -- -D warnings`
+3. Run `cargo test --all`
+4. Update documentation if needed
 
-2. **Run all checks:**
-   ```bash
-   cargo fmt --check
-   cargo clippy --all-targets -- -D warnings
-   cargo test --all
-   ```
-
-3. **Update documentation** if needed
-
-### Creating a Pull Request
+### Pull Request
 
 1. Push your branch to your fork
 2. Open a PR against `rohitg00/rimuru:main`
-3. Fill out the PR template completely
+3. Fill out the PR description
 4. Link related issues
 
-### PR Template
+## Project Structure
 
-```markdown
-## Description
-Brief description of changes
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
-
-## Testing
-How was this tested?
-
-## Checklist
-- [ ] Code follows project style
-- [ ] Tests added/updated
-- [ ] Documentation updated
-- [ ] CI passes
+```
+crates/
+  rimuru-core/     # iii Worker: functions, triggers, HTTP server, Web UI
+  rimuru-cli/      # CLI client (connects to iii engine via WebSocket)
+  rimuru-tui/      # Terminal UI (Ratatui, connects via HTTP)
+  rimuru-desktop/  # Desktop app (Tauri v2, embeds worker)
+ui/                # Web UI (React + Vite)
 ```
 
-## Review Process
+### Key Patterns
 
-### What to Expect
-
-1. **Automated Checks**: CI runs on all PRs
-2. **Code Review**: Maintainer reviews within 2-3 days
-3. **Feedback**: Address any requested changes
-4. **Merge**: Once approved and CI passes
-
-### Review Criteria
-
-- Code quality and style
-- Test coverage
-- Documentation completeness
-- Breaking change considerations
-- Security implications
-
-### After Merge
-
-- Delete your feature branch
-- Sync your fork with upstream
-
-## Additional Resources
-
-- [Rust Book](https://doc.rust-lang.org/book/)
-- [Tokio Tutorial](https://tokio.rs/tokio/tutorial)
-- [Ratatui Docs](https://ratatui.rs/)
-- [Tauri Docs](https://tauri.app/v1/guides/)
+- **Functions**: Register via `iii.register_function()` in `crates/rimuru-core/src/functions/`
+- **State**: In-memory KV via `StateKV` (no database)
+- **HTTP**: Axum handlers call iii functions in `crates/rimuru-core/src/http.rs`
+- **Triggers**: API and schedule triggers in `crates/rimuru-core/src/triggers/`
+- **Adapters**: Agent discovery in `crates/rimuru-core/src/adapters/`
 
 ## Questions?
 
 - Open a [Discussion](https://github.com/rohitg00/rimuru/discussions)
 - Check existing [Issues](https://github.com/rohitg00/rimuru/issues)
-
-Thank you for contributing to Rimuru!
