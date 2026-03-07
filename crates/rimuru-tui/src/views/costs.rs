@@ -57,9 +57,7 @@ fn render_summary(f: &mut Frame, app: &App, area: Rect) {
             Line::from(""),
             Line::from(Span::styled(
                 value.to_string(),
-                Style::default()
-                    .fg(*color)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(*color).add_modifier(Modifier::BOLD),
             )),
         ])
         .block(block)
@@ -80,7 +78,10 @@ fn render_daily(f: &mut Frame, app: &App, area: Rect) {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(theme.border))
-                    .title(Span::styled(" Daily Costs ", Style::default().fg(theme.accent))),
+                    .title(Span::styled(
+                        " Daily Costs ",
+                        Style::default().fg(theme.accent),
+                    )),
             );
         f.render_widget(p, area);
         return;
@@ -105,7 +106,9 @@ fn render_daily(f: &mut Frame, app: &App, area: Rect) {
         .enumerate()
         .map(|(i, dc)| {
             let style = if i == app.selected_index {
-                Style::default().bg(theme.selection_bg).fg(theme.selection_fg)
+                Style::default()
+                    .bg(theme.selection_bg)
+                    .fg(theme.selection_fg)
             } else {
                 Style::default().fg(theme.fg)
             };

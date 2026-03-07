@@ -31,7 +31,12 @@ impl AppState {
             .map_err(|e| format!("{}: {}", function_id, e))
     }
 
-    pub async fn call_extract(&self, function_id: &str, input: Value, field: &str) -> Result<Value, String> {
+    pub async fn call_extract(
+        &self,
+        function_id: &str,
+        input: Value,
+        field: &str,
+    ) -> Result<Value, String> {
         let result = self.call(function_id, input).await?;
         Ok(result.get(field).cloned().unwrap_or(result))
     }

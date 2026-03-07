@@ -156,7 +156,9 @@ fn render_center(f: &mut Frame, app: &App, area: Rect) {
         ),
         Span::styled(
             SAGE_TIPS[tip_idx],
-            Style::default().fg(theme.muted).add_modifier(Modifier::ITALIC),
+            Style::default()
+                .fg(theme.muted)
+                .add_modifier(Modifier::ITALIC),
         ),
     ]))
     .block(
@@ -170,17 +172,16 @@ fn render_center(f: &mut Frame, app: &App, area: Rect) {
 fn render_summary(f: &mut Frame, app: &App, area: Rect) {
     let theme = app.theme();
 
-    let (active_sessions, tokens, cost_today, total_cost) =
-        if let Some(ref s) = app.stats {
-            (
-                s.active_sessions.to_string(),
-                format_tokens(s.total_tokens),
-                format!("${:.2}", s.total_cost_today),
-                format!("${:.2}", s.total_cost),
-            )
-        } else {
-            ("-".into(), "-".into(), "-".into(), "-".into())
-        };
+    let (active_sessions, tokens, cost_today, total_cost) = if let Some(ref s) = app.stats {
+        (
+            s.active_sessions.to_string(),
+            format_tokens(s.total_tokens),
+            format!("${:.2}", s.total_cost_today),
+            format!("${:.2}", s.total_cost),
+        )
+    } else {
+        ("-".into(), "-".into(), "-".into(), "-".into())
+    };
 
     let agents_count = if let Some(ref s) = app.stats {
         format!("{}/{}", s.active_agents, s.total_agents)
@@ -299,10 +300,7 @@ fn render_right_panel(f: &mut Frame, app: &App, area: Rect) {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(theme.border))
-                    .title(Span::styled(
-                        " Errors ",
-                        Style::default().fg(theme.muted),
-                    )),
+                    .title(Span::styled(" Errors ", Style::default().fg(theme.muted))),
             )
             .filled_style(Style::default().fg(if err_ratio > 0.05 {
                 theme.error

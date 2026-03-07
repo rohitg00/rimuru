@@ -28,7 +28,10 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    println!("rimuru-worker running (API on port {}). Press Ctrl+C to stop.", api_port);
+    println!(
+        "rimuru-worker running (API on port {}). Press Ctrl+C to stop.",
+        api_port
+    );
     tokio::signal::ctrl_c().await?;
 
     worker.shutdown().await;

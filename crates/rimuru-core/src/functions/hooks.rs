@@ -19,10 +19,7 @@ fn register_delete(iii: &III, kv: &StateKV) {
         async move {
             let hook_id = require_str(&input, "hook_id")?;
 
-            let hooks: Vec<HookRegistration> = kv
-                .list("hooks")
-                .await
-                .map_err(kv_err)?;
+            let hooks: Vec<HookRegistration> = kv.list("hooks").await.map_err(kv_err)?;
 
             let found = hooks.iter().find(|h| {
                 let key = format!("{}::{}", h.event_type, h.function_id);
@@ -49,10 +46,7 @@ fn register_dispatch(iii: &III, kv: &StateKV) {
 
             let payload = input.get("payload").cloned().unwrap_or(json!({}));
 
-            let hooks: Vec<HookRegistration> = kv
-                .list("hooks")
-                .await
-                .map_err(kv_err)?;
+            let hooks: Vec<HookRegistration> = kv.list("hooks").await.map_err(kv_err)?;
 
             let mut matching: Vec<&HookRegistration> = hooks
                 .iter()
@@ -67,9 +61,8 @@ fn register_dispatch(iii: &III, kv: &StateKV) {
             let iii_ref = kv.iii().clone();
 
             for hook in &matching {
-                let invoke_result: Result<Value, iii_sdk::IIIError> = iii_ref
-                    .trigger(&hook.function_id, payload.clone())
-                    .await;
+                let invoke_result: Result<Value, iii_sdk::IIIError> =
+                    iii_ref.trigger(&hook.function_id, payload.clone()).await;
 
                 match invoke_result {
                     Ok(result) => {
@@ -110,10 +103,7 @@ fn register_register(iii: &III, kv: &StateKV) {
 
             let function_id = require_str(&input, "function_id")?;
 
-            let priority = input
-                .get("priority")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0) as i32;
+            let priority = input.get("priority").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
 
             let hook = HookRegistration {
                 event_type: event_type.clone(),
@@ -123,28 +113,21 @@ fn register_register(iii: &III, kv: &StateKV) {
 
             let hook_key = format!("{}::{}", event_type, function_id);
 
-            let existing: Vec<HookRegistration> = kv
-                .list("hooks")
-                .await
-                .map_err(kv_err)?;
+            let existing: Vec<HookRegistration> = kv.list("hooks").await.map_err(kv_err)?;
 
             let already_exists = existing
                 .iter()
                 .any(|h| h.event_type == event_type && h.function_id == function_id);
 
             if already_exists {
-                kv.set("hooks", &hook_key, &hook)
-                    .await
-                    .map_err(kv_err)?;
+                kv.set("hooks", &hook_key, &hook).await.map_err(kv_err)?;
 
                 Ok(json!({
                     "hook": hook,
                     "updated": true
                 }))
             } else {
-                kv.set("hooks", &hook_key, &hook)
-                    .await
-                    .map_err(kv_err)?;
+                kv.set("hooks", &hook_key, &hook).await.map_err(kv_err)?;
 
                 Ok(json!({
                     "hook": hook,
@@ -156,23 +139,25 @@ fn register_register(iii: &III, kv: &StateKV) {
 }
 
 fn register_list(iii: &III, _kv: &StateKV) {
-    iii.register_function("rimuru.hooks.list", move |_input: Value| {
-        async move {
-            let hooks = crate::discovery::discover_hooks().await;
+    iii.register_function("rimuru.hooks.list", move |_input: Value| async move {
+        let hooks = crate::discovery::discover_hooks().await;
 
-            let mut event_types: Vec<String> = hooks
-                .iter()
-                .filter_map(|h| h.get("event_type").and_then(|e| e.as_str()).map(String::from))
-                .collect::<std::collections::HashSet<_>>()
-                .into_iter()
-                .collect();
-            event_types.sort();
+        let mut event_types: Vec<String> = hooks
+            .iter()
+            .filter_map(|h| {
+                h.get("event_type")
+                    .and_then(|e| e.as_str())
+                    .map(String::from)
+            })
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        event_types.sort();
 
-            Ok(json!({
-                "hooks": hooks,
-                "total": hooks.len(),
-                "event_types": event_types
-            }))
-        }
+        Ok(json!({
+            "hooks": hooks,
+            "total": hooks.len(),
+            "event_types": event_types
+        }))
     });
 }

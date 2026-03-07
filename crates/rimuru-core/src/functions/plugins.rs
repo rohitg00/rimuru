@@ -49,10 +49,8 @@ fn register_install(iii: &III, kv: &StateKV) {
                 .and_then(|v| serde_json::from_value(v.clone()).ok())
                 .unwrap_or_default();
 
-            let existing: Option<PluginManifest> = kv
-                .get("plugins", &plugin_id)
-                .await
-                .map_err(kv_err)?;
+            let existing: Option<PluginManifest> =
+                kv.get("plugins", &plugin_id).await.map_err(kv_err)?;
 
             if existing.is_some() {
                 return Err(iii_sdk::IIIError::Handler(format!(
@@ -147,10 +145,8 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
                     iii_sdk::IIIError::Handler(format!("plugin not found: {}", plugin_id))
                 })?;
 
-            let state: Option<PluginState> = kv
-                .get("plugin_state", &plugin_id)
-                .await
-                .map_err(kv_err)?;
+            let state: Option<PluginState> =
+                kv.get("plugin_state", &plugin_id).await.map_err(kv_err)?;
 
             if let Some(ref s) = state {
                 if s.status == PluginStatus::Running {
@@ -166,9 +162,7 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
                 }
             }
 
-            kv.delete("plugins", &plugin_id)
-                .await
-                .map_err(kv_err)?;
+            kv.delete("plugins", &plugin_id).await.map_err(kv_err)?;
 
             kv.delete("plugin_state", &plugin_id)
                 .await
@@ -183,14 +177,12 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
 }
 
 fn register_list(iii: &III, _kv: &StateKV) {
-    iii.register_function("rimuru.plugins.list", move |_input: Value| {
-        async move {
-            let result = crate::discovery::discover_plugins().await;
-            Ok(json!({
-                "plugins": result,
-                "total": result.len()
-            }))
-        }
+    iii.register_function("rimuru.plugins.list", move |_input: Value| async move {
+        let result = crate::discovery::discover_plugins().await;
+        Ok(json!({
+            "plugins": result,
+            "total": result.len()
+        }))
     });
 }
 

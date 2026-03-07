@@ -35,13 +35,10 @@ struct AppStateInner {
 }
 
 async fn call_function(kv: &StateKV, function_id: &str, input: Value) -> Result<Value, StatusCode> {
-    kv.iii()
-        .trigger(function_id, input)
-        .await
-        .map_err(|e| {
-            tracing::error!("Function call failed: {} - {}", function_id, e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    kv.iii().trigger(function_id, input).await.map_err(|e| {
+        tracing::error!("Function call failed: {} - {}", function_id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
 }
 
 fn unwrap_field(v: Value, field: &str) -> Value {
@@ -99,7 +96,13 @@ async fn api_agents_disconnect(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match call_function(&state.kv, "rimuru.agents.disconnect", json!({"agent_id": id})).await {
+    match call_function(
+        &state.kv,
+        "rimuru.agents.disconnect",
+        json!({"agent_id": id}),
+    )
+    .await
+    {
         Ok(v) => Json(v).into_response(),
         Err(s) => s.into_response(),
     }
@@ -242,14 +245,26 @@ async fn api_models_advisor(State(state): State<AppState>) -> impl IntoResponse 
 }
 
 async fn api_models_catalog(State(state): State<AppState>) -> impl IntoResponse {
-    match call_function(&state.kv, "rimuru.advisor.catalog", json!({"filter": "all"})).await {
+    match call_function(
+        &state.kv,
+        "rimuru.advisor.catalog",
+        json!({"filter": "all"}),
+    )
+    .await
+    {
         Ok(v) => Json(v).into_response(),
         Err(s) => s.into_response(),
     }
 }
 
 async fn api_models_catalog_runnable(State(state): State<AppState>) -> impl IntoResponse {
-    match call_function(&state.kv, "rimuru.advisor.catalog", json!({"filter": "runnable"})).await {
+    match call_function(
+        &state.kv,
+        "rimuru.advisor.catalog",
+        json!({"filter": "runnable"}),
+    )
+    .await
+    {
         Ok(v) => Json(v).into_response(),
         Err(s) => s.into_response(),
     }
@@ -345,11 +360,19 @@ async fn api_hooks_dispatch(
 }
 
 async fn api_hooks_update(Path(_id): Path<String>) -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "hook update not yet implemented"}))).into_response()
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({"error": "hook update not yet implemented"})),
+    )
+        .into_response()
 }
 
 async fn api_hooks_executions() -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "hook executions not yet implemented"}))).into_response()
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({"error": "hook executions not yet implemented"})),
+    )
+        .into_response()
 }
 
 async fn api_plugins_list(State(state): State<AppState>) -> impl IntoResponse {
@@ -373,7 +396,13 @@ async fn api_plugins_uninstall(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match call_function(&state.kv, "rimuru.plugins.uninstall", json!({"plugin_id": id})).await {
+    match call_function(
+        &state.kv,
+        "rimuru.plugins.uninstall",
+        json!({"plugin_id": id}),
+    )
+    .await
+    {
         Ok(v) => Json(v).into_response(),
         Err(s) => s.into_response(),
     }
@@ -386,7 +415,13 @@ async fn api_plugins_toggle(
     let func = match action.as_str() {
         "start" | "enable" => "rimuru.plugins.start",
         "stop" | "disable" => "rimuru.plugins.stop",
-        _ => return (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid action"}))).into_response(),
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": "invalid action"})),
+            )
+                .into_response()
+        }
     };
     match call_function(&state.kv, func, json!({"plugin_id": id})).await {
         Ok(v) => Json(v).into_response(),
@@ -495,9 +530,10 @@ async fn api_stats(State(state): State<AppState>) -> impl IntoResponse {
     let plugins = discovery::discover_plugins().await;
     let hooks = discovery::discover_hooks().await;
     let plugins_installed = plugins.len();
-    let hooks_active = hooks.iter().filter(|h| {
-        h.get("enabled").and_then(|e| e.as_bool()).unwrap_or(false)
-    }).count();
+    let hooks_active = hooks
+        .iter()
+        .filter(|h| h.get("enabled").and_then(|e| e.as_bool()).unwrap_or(false))
+        .count();
 
     Json(json!({
         "total_cost": total_cost,
@@ -519,14 +555,25 @@ async fn api_activity(State(state): State<AppState>) -> impl IntoResponse {
     if let Ok(v) = call_function(&state.kv, "rimuru.agents.list", json!({})).await {
         if let Some(agents) = v.get("agents").and_then(|a| a.as_array()) {
             for agent in agents {
-                let name = agent.get("name").and_then(|n| n.as_str()).unwrap_or("Unknown");
-                let status = agent.get("status").and_then(|s| s.as_str()).unwrap_or("unknown");
-                let ts = agent.get("last_seen")
+                let name = agent
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("Unknown");
+                let status = agent
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("unknown");
+                let ts = agent
+                    .get("last_seen")
                     .or_else(|| agent.get("connected_at"))
                     .and_then(|t| t.as_str())
                     .unwrap_or("");
                 if !ts.is_empty() {
-                    let event_type = if status == "connected" { "agent_connected" } else { "agent_disconnected" };
+                    let event_type = if status == "connected" {
+                        "agent_connected"
+                    } else {
+                        "agent_disconnected"
+                    };
                     events.push(json!({
                         "id": format!("agent-{}", agent.get("id").and_then(|i| i.as_str()).unwrap_or("0")),
                         "type": event_type,
@@ -544,11 +591,26 @@ async fn api_activity(State(state): State<AppState>) -> impl IntoResponse {
         if let Some(sessions) = v.get("sessions").and_then(|s| s.as_array()) {
             let recent: Vec<&Value> = sessions.iter().take(20).collect();
             for sess in recent {
-                let model = sess.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
-                let status = sess.get("status").and_then(|s| s.as_str()).unwrap_or("completed");
-                let agent_type = sess.get("agent_type").and_then(|t| t.as_str()).unwrap_or("agent");
-                let cost = sess.get("total_cost").and_then(|c| c.as_f64()).unwrap_or(0.0);
-                let ts = sess.get("started_at").and_then(|t| t.as_str()).unwrap_or("");
+                let model = sess
+                    .get("model")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("unknown");
+                let status = sess
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("completed");
+                let agent_type = sess
+                    .get("agent_type")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("agent");
+                let cost = sess
+                    .get("total_cost")
+                    .and_then(|c| c.as_f64())
+                    .unwrap_or(0.0);
+                let ts = sess
+                    .get("started_at")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("");
                 let ended = sess.get("ended_at").and_then(|t| t.as_str()).unwrap_or("");
                 let sid = sess.get("id").and_then(|i| i.as_str()).unwrap_or("0");
 
@@ -597,7 +659,10 @@ fn router(state: AppState) -> Router {
         .route("/api/stats", get(api_stats))
         .route("/api/activity", get(api_activity))
         .route("/api/activity/recent", get(api_activity))
-        .route("/api/agents", get(api_agents_list).post(api_agents_register))
+        .route(
+            "/api/agents",
+            get(api_agents_list).post(api_agents_register),
+        )
         .route("/api/agents/detect", get(api_agents_detect))
         .route("/api/agents/connect", post(api_agents_connect))
         .route("/api/agents/{id}", get(api_agents_get))
@@ -615,7 +680,10 @@ fn router(state: AppState) -> Router {
         .route("/api/models", get(api_models_list))
         .route("/api/models/advisor", get(api_models_advisor))
         .route("/api/models/catalog", get(api_models_catalog))
-        .route("/api/models/catalog/runnable", get(api_models_catalog_runnable))
+        .route(
+            "/api/models/catalog/runnable",
+            get(api_models_catalog_runnable),
+        )
         .route("/api/models/sync", post(api_models_sync))
         .route("/api/models/{id}", get(api_models_get))
         .route("/api/metrics", get(api_metrics_current))
@@ -629,10 +697,16 @@ fn router(state: AppState) -> Router {
         .route("/api/hooks/{id}", put(api_hooks_update))
         .route("/api/plugins", get(api_plugins_list))
         .route("/api/plugins/install", post(api_plugins_install))
-        .route("/api/plugins/{id}", axum::routing::delete(api_plugins_uninstall))
+        .route(
+            "/api/plugins/{id}",
+            axum::routing::delete(api_plugins_uninstall),
+        )
         .route("/api/plugins/{id}/{action}", post(api_plugins_toggle))
         .route("/api/mcp", get(api_mcp_list))
-        .route("/api/config", get(api_config_get).post(api_config_set).put(api_config_set))
+        .route(
+            "/api/config",
+            get(api_config_get).post(api_config_set).put(api_config_set),
+        )
         .fallback(get(serve_ui))
         .layer(
             TraceLayer::new_for_http()
@@ -657,10 +731,23 @@ pub async fn serve(kv: StateKV, port: u16) -> Result<(), Box<dyn std::error::Err
                 let m = v.get("metrics").unwrap_or(&v);
                 let snapshot = MetricSnapshot {
                     timestamp: chrono::Utc::now().to_rfc3339(),
-                    cpu: m.get("cpu_usage_percent").and_then(|c| c.as_f64()).unwrap_or(0.0),
-                    memory: m.get("memory_used_mb").and_then(|c| c.as_f64()).unwrap_or(0.0),
-                    requests: m.get("requests_per_minute").and_then(|c| c.as_f64()).unwrap_or(0.0) / 60.0,
-                    connections: m.get("active_agents").and_then(|c| c.as_f64()).unwrap_or(0.0),
+                    cpu: m
+                        .get("cpu_usage_percent")
+                        .and_then(|c| c.as_f64())
+                        .unwrap_or(0.0),
+                    memory: m
+                        .get("memory_used_mb")
+                        .and_then(|c| c.as_f64())
+                        .unwrap_or(0.0),
+                    requests: m
+                        .get("requests_per_minute")
+                        .and_then(|c| c.as_f64())
+                        .unwrap_or(0.0)
+                        / 60.0,
+                    connections: m
+                        .get("active_agents")
+                        .and_then(|c| c.as_f64())
+                        .unwrap_or(0.0),
                 };
                 let mut buf = bg_state.metrics_buffer.lock().await;
                 if buf.len() >= 120 {

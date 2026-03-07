@@ -6,13 +6,15 @@ use crate::app::App;
 pub fn render(f: &mut Frame, app: &App, area: Rect) {
     let theme = app.theme();
 
-    let header = Row::new(vec!["Name", "Version", "Author", "Language", "Enabled", "Hooks"])
-        .style(
-            Style::default()
-                .fg(theme.accent)
-                .add_modifier(Modifier::BOLD),
-        )
-        .bottom_margin(1);
+    let header = Row::new(vec![
+        "Name", "Version", "Author", "Language", "Enabled", "Hooks",
+    ])
+    .style(
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
+    )
+    .bottom_margin(1);
 
     let rows: Vec<Row> = app
         .plugins
@@ -20,7 +22,9 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         .enumerate()
         .map(|(i, plugin)| {
             let style = if i == app.selected_index {
-                Style::default().bg(theme.selection_bg).fg(theme.selection_fg)
+                Style::default()
+                    .bg(theme.selection_bg)
+                    .fg(theme.selection_fg)
             } else {
                 Style::default().fg(theme.fg)
             };
@@ -39,7 +43,10 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
                 Cell::from(plugin.version.clone()),
                 Cell::from(author.to_string()),
                 Cell::from(plugin.language.clone()),
-                Cell::from(Span::styled(enabled_text, Style::default().fg(enabled_color))),
+                Cell::from(Span::styled(
+                    enabled_text,
+                    Style::default().fg(enabled_color),
+                )),
                 Cell::from(plugin.hooks.len().to_string()),
             ])
             .style(style)

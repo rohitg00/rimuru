@@ -6,13 +6,20 @@ use crate::app::App;
 pub fn render(f: &mut Frame, app: &App, area: Rect) {
     let theme = app.theme();
 
-    let header = Row::new(vec!["Name", "Type", "Status", "Sessions", "Cost", "Last Seen"])
-        .style(
-            Style::default()
-                .fg(theme.accent)
-                .add_modifier(Modifier::BOLD),
-        )
-        .bottom_margin(1);
+    let header = Row::new(vec![
+        "Name",
+        "Type",
+        "Status",
+        "Sessions",
+        "Cost",
+        "Last Seen",
+    ])
+    .style(
+        Style::default()
+            .fg(theme.accent)
+            .add_modifier(Modifier::BOLD),
+    )
+    .bottom_margin(1);
 
     let rows: Vec<Row> = app
         .agents
@@ -28,7 +35,9 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
             };
 
             let style = if i == app.selected_index {
-                Style::default().bg(theme.selection_bg).fg(theme.selection_fg)
+                Style::default()
+                    .bg(theme.selection_bg)
+                    .fg(theme.selection_fg)
             } else {
                 Style::default().fg(theme.fg)
             };
@@ -41,7 +50,10 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
             Row::new(vec![
                 Cell::from(agent.name.clone()),
                 Cell::from(agent.agent_type.clone()),
-                Cell::from(Span::styled(&agent.status, Style::default().fg(status_color))),
+                Cell::from(Span::styled(
+                    &agent.status,
+                    Style::default().fg(status_color),
+                )),
                 Cell::from(agent.session_count.to_string()),
                 Cell::from(format!("${:.2}", agent.total_cost)),
                 Cell::from(last_seen),

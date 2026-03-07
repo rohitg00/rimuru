@@ -120,10 +120,7 @@ impl StateKV {
                 .or_insert_with(|| Value::Object(serde_json::Map::new()));
 
             if let Value::Object(ref mut map) = entry.value_mut() {
-                let current = map
-                    .get(field)
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(0);
+                let current = map.get(field).and_then(|v| v.as_i64()).unwrap_or(0);
                 let updated = current + by;
                 map.insert(field.to_string(), Value::Number(updated.into()));
                 updated

@@ -236,7 +236,9 @@ impl AgentAdapter for CursorAdapter {
             agent.session_count = workspaces.len() as u64;
         }
 
-        let settings = self.read_settings().unwrap_or_else(|_| serde_json::json!({}));
+        let settings = self
+            .read_settings()
+            .unwrap_or_else(|_| serde_json::json!({}));
         agent.metadata = serde_json::json!({
             "settings_keys": settings.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()).unwrap_or_default(),
             "storage_path": self.storage_path().to_string_lossy(),
@@ -251,7 +253,11 @@ impl AgentAdapter for CursorAdapter {
         for ws in &workspaces {
             match self.parse_workspace_session(ws) {
                 Ok(s) => sessions.push(s),
-                Err(e) => warn!("Failed to parse Cursor workspace at {}: {}", ws.display(), e),
+                Err(e) => warn!(
+                    "Failed to parse Cursor workspace at {}: {}",
+                    ws.display(),
+                    e
+                ),
             }
         }
         sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));

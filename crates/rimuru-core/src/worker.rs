@@ -1,4 +1,4 @@
-use iii_sdk::{III, WorkerMetadata};
+use iii_sdk::{WorkerMetadata, III};
 use tracing::info;
 
 use crate::error::RimuruError;
@@ -57,10 +57,7 @@ impl RimuruWorker {
             .await
         {
             Ok(result) => {
-                let total = result
-                    .get("total")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
+                let total = result.get("total").and_then(|v| v.as_u64()).unwrap_or(0);
                 info!("Auto-detected and registered {} agents", total);
             }
             Err(e) => {
@@ -82,7 +79,10 @@ impl RimuruWorker {
                     .get("synced_costs")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0);
-                info!("Synced {} sessions, {} cost records from disk", sessions, costs);
+                info!(
+                    "Synced {} sessions, {} cost records from disk",
+                    sessions, costs
+                );
             }
             Err(e) => {
                 tracing::warn!("Failed to sync agent data: {}", e);

@@ -16,7 +16,9 @@ pub async fn get_cost_summary(
     if let Some(u) = until {
         input["until"] = json!(u);
     }
-    state.call_extract("rimuru.costs.summary", input, "summary").await
+    state
+        .call_extract("rimuru.costs.summary", input, "summary")
+        .await
 }
 
 #[tauri::command]
@@ -41,14 +43,13 @@ pub async fn get_cost_history(
     if let Some(d) = days {
         input["days"] = json!(d);
     }
-    state.call_extract("rimuru.costs.daily", input, "daily").await
+    state
+        .call_extract("rimuru.costs.daily", input, "daily")
+        .await
 }
 
 #[tauri::command]
-pub async fn record_cost(
-    state: State<'_, AppState>,
-    body: Value,
-) -> Result<Value, String> {
+pub async fn record_cost(state: State<'_, AppState>, body: Value) -> Result<Value, String> {
     state.call("rimuru.costs.record", body).await
 }
 

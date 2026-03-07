@@ -27,7 +27,12 @@ pub async fn get(iii: &III, model_id: &str, format: &OutputFormat) -> Result<()>
         .trigger("rimuru.models.get", json!({"model_id": model_id}))
         .await?;
 
-    if result.is_null() || result.get("error").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if result.is_null()
+        || result
+            .get("error")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    {
         anyhow::bail!("Model '{}' not found", model_id);
     }
 

@@ -21,10 +21,7 @@ pub async fn dispatch_hook(state: State<'_, AppState>, body: Value) -> Result<Va
 }
 
 #[tauri::command]
-pub async fn delete_hook(
-    state: State<'_, AppState>,
-    hook_id: String,
-) -> Result<Value, String> {
+pub async fn delete_hook(state: State<'_, AppState>, hook_id: String) -> Result<Value, String> {
     state
         .call("rimuru.hooks.delete", json!({ "hook_id": hook_id }))
         .await

@@ -3,10 +3,13 @@ use iii_sdk::III;
 use serde_json::{json, Value};
 use tracing::{info, warn};
 
-use crate::adapters::{AgentAdapter, ClaudeCodeAdapter, CursorAdapter, CopilotAdapter, CodexAdapter, GooseAdapter, OpenCodeAdapter};
+use super::sysutil::{kv_err, require_str};
+use crate::adapters::{
+    AgentAdapter, ClaudeCodeAdapter, CodexAdapter, CopilotAdapter, CursorAdapter, GooseAdapter,
+    OpenCodeAdapter,
+};
 use crate::models::{Agent, AgentConfig, AgentStatus, AgentType, CostRecord, SessionStatus};
 use crate::state::StateKV;
-use super::sysutil::{kv_err, require_str};
 
 pub fn register(iii: &III, kv: &StateKV) {
     register_list(iii, kv);
@@ -26,10 +29,7 @@ fn register_list(iii: &III, kv: &StateKV) {
     iii.register_function("rimuru.agents.list", move |input: Value| {
         let kv = kv.clone();
         async move {
-            let agents: Vec<Agent> = kv
-                .list("agents")
-                .await
-                .map_err(kv_err)?;
+            let agents: Vec<Agent> = kv.list("agents").await.map_err(kv_err)?;
 
             let agent_type_filter = input
                 .get("agent_type")
@@ -66,17 +66,12 @@ fn register_get(iii: &III, kv: &StateKV) {
         async move {
             let agent_id = require_str(&input, "agent_id")?;
 
-            let agent: Option<Agent> = kv
-                .get("agents", &agent_id)
-                .await
-                .map_err(kv_err)?;
+            let agent: Option<Agent> = kv.get("agents", &agent_id).await.map_err(kv_err)?;
 
             match agent {
                 Some(a) => {
-                    let config: Option<AgentConfig> = kv
-                        .get("agent_config", &agent_id)
-                        .await
-                        .map_err(kv_err)?;
+                    let config: Option<AgentConfig> =
+                        kv.get("agent_config", &agent_id).await.map_err(kv_err)?;
 
                     Ok(json!({
                         "agent": a,
@@ -125,9 +120,7 @@ fn register_create(iii: &III, kv: &StateKV) {
 
             let agent_id = agent.id.to_string();
 
-            kv.set("agents", &agent_id, &agent)
-                .await
-                .map_err(kv_err)?;
+            kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
             let config = AgentConfig {
                 agent_id: agent.id,
@@ -179,9 +172,7 @@ fn register_update(iii: &III, kv: &StateKV) {
 
             agent.last_seen = Some(Utc::now());
 
-            kv.set("agents", &agent_id, &agent)
-                .await
-                .map_err(kv_err)?;
+            kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
             Ok(json!({"agent": agent}))
         }
@@ -203,13 +194,9 @@ fn register_delete(iii: &III, kv: &StateKV) {
                     iii_sdk::IIIError::Handler(format!("agent not found: {}", agent_id))
                 })?;
 
-            kv.delete("agents", &agent_id)
-                .await
-                .map_err(kv_err)?;
+            kv.delete("agents", &agent_id).await.map_err(kv_err)?;
 
-            kv.delete("agent_config", &agent_id)
-                .await
-                .map_err(kv_err)?;
+            kv.delete("agent_config", &agent_id).await.map_err(kv_err)?;
 
             Ok(json!({"deleted": agent_id}))
         }
@@ -247,9 +234,7 @@ fn register_status(iii: &III, kv: &StateKV) {
                 agent.connected_at = Some(Utc::now());
             }
 
-            kv.set("agents", &agent_id, &agent)
-                .await
-                .map_err(kv_err)?;
+            kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
             Ok(json!({
                 "agent_id": agent_id,
@@ -363,9 +348,7 @@ fn register_connect(iii: &III, kv: &StateKV) {
                 agent.status = AgentStatus::Connected;
                 agent.connected_at = Some(Utc::now());
                 agent.last_seen = Some(Utc::now());
-                kv.set("agents", &agent_id, &agent)
-                    .await
-                    .map_err(kv_err)?;
+                kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
                 return Ok(json!({"agent": agent, "action": "connected"}));
             }
 
@@ -385,9 +368,7 @@ fn register_connect(iii: &III, kv: &StateKV) {
             }
 
             let agent_id = agent.id.to_string();
-            kv.set("agents", &agent_id, &agent)
-                .await
-                .map_err(kv_err)?;
+            kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
             let config = AgentConfig {
                 agent_id: agent.id,
                 ..AgentConfig::default()
@@ -419,9 +400,7 @@ fn register_disconnect(iii: &III, kv: &StateKV) {
             agent.status = AgentStatus::Disconnected;
             agent.last_seen = Some(Utc::now());
 
-            kv.set("agents", &agent_id, &agent)
-                .await
-                .map_err(kv_err)?;
+            kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
             Ok(json!({"agent": agent, "action": "disconnected"}))
         }
@@ -481,7 +460,11 @@ async fn sync_agent_sessions(
                     AgentType::Goose | AgentType::OpenCode => "unknown",
                 };
                 let total_tokens = session.input_tokens + session.output_tokens;
-                let input_ratio = if total_tokens > 0 { session.input_tokens as f64 / total_tokens as f64 } else { 0.3 };
+                let input_ratio = if total_tokens > 0 {
+                    session.input_tokens as f64 / total_tokens as f64
+                } else {
+                    0.3
+                };
                 let mut cost_record = CostRecord::new_for_session(
                     session.id,
                     agent.id,
@@ -575,7 +558,9 @@ fn register_sync(iii: &III, kv: &StateKV) {
 
                 let result = sync_agent_sessions(&kv, agent, sessions).await;
 
-                if result.session_count == 0 || (result.total_cost == 0.0 && result.total_tokens == 0) {
+                if result.session_count == 0
+                    || (result.total_cost == 0.0 && result.total_tokens == 0)
+                {
                     remove_agent(&kv, &agent_id).await;
                     continue;
                 }

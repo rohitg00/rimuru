@@ -7,9 +7,17 @@ use iii_sdk::III;
 use output::OutputFormat;
 
 #[derive(Parser)]
-#[command(name = "rimuru", version, about = "AI agent orchestration & cost tracking")]
+#[command(
+    name = "rimuru",
+    version,
+    about = "AI agent orchestration & cost tracking"
+)]
 struct Cli {
-    #[arg(long, default_value = "ws://127.0.0.1:49134", env = "RIMURU_ENGINE_URL")]
+    #[arg(
+        long,
+        default_value = "ws://127.0.0.1:49134",
+        env = "RIMURU_ENGINE_URL"
+    )]
     engine_url: String,
 
     #[arg(long, default_value = "table", value_enum)]
@@ -236,9 +244,7 @@ async fn main() -> Result<()> {
         Commands::Models { action } => match action {
             ModelsAction::List => commands::models::list(&iii, format).await,
             ModelsAction::Sync => commands::models::sync(&iii, format).await,
-            ModelsAction::Get { model_id } => {
-                commands::models::get(&iii, &model_id, format).await
-            }
+            ModelsAction::Get { model_id } => commands::models::get(&iii, &model_id, format).await,
         },
 
         Commands::Metrics { action } => match action {
@@ -262,17 +268,11 @@ async fn main() -> Result<()> {
                 event_type,
                 function_id,
                 priority,
-            } => {
-                commands::hooks::register(&iii, &event_type, &function_id, priority, format)
-                    .await
-            }
+            } => commands::hooks::register(&iii, &event_type, &function_id, priority, format).await,
             HooksAction::Dispatch {
                 event_type,
                 payload,
-            } => {
-                commands::hooks::dispatch(&iii, &event_type, payload.as_deref(), format)
-                    .await
-            }
+            } => commands::hooks::dispatch(&iii, &event_type, payload.as_deref(), format).await,
         },
 
         Commands::Mcp { action } => match action {
@@ -280,9 +280,7 @@ async fn main() -> Result<()> {
         },
 
         Commands::Config { action } => match action {
-            ConfigAction::Get { key } => {
-                commands::config::get(&iii, key.as_deref(), format).await
-            }
+            ConfigAction::Get { key } => commands::config::get(&iii, key.as_deref(), format).await,
             ConfigAction::Set { key, value } => {
                 commands::config::set(&iii, &key, &value, format).await
             }

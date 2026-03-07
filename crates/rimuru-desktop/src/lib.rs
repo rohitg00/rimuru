@@ -23,8 +23,8 @@ pub fn run() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(3100);
 
-    let engine_url = std::env::var("RIMURU_ENGINE_URL")
-        .unwrap_or_else(|_| DEFAULT_ENGINE_URL.to_string());
+    let engine_url =
+        std::env::var("RIMURU_ENGINE_URL").unwrap_or_else(|_| DEFAULT_ENGINE_URL.to_string());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
