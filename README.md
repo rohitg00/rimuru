@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/rohitg00/rimuru/actions/workflows/ci.yml"><img src="https://github.com/rohitg00/rimuru/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.83%2B-orange.svg" alt="Rust"></a>
   <a href="https://github.com/rohitg00/rimuru/releases"><img src="https://img.shields.io/github/v/release/rohitg00/rimuru" alt="Release"></a>
 </p>
@@ -21,6 +21,18 @@
   <a href="#four-interfaces">Interfaces</a> &middot;
   <a href="#hardware-advisor">Advisor</a> &middot;
   <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+<p align="center">
+  <strong>Web UI</strong><br/>
+  <img src="docs/assets/rimuru-ui.gif" alt="Rimuru Web UI Demo" width="720"/>
+</p>
+
+<p align="center">
+  <strong>Terminal UI</strong><br/>
+  <img src="docs/assets/rimuru-tui.gif" alt="Rimuru TUI Demo" width="720"/>
 </p>
 
 ---
@@ -295,12 +307,10 @@ rimuru/
 │   │       └── commands/         # Subcommand handlers
 │   ├── rimuru-tui/               # Terminal UI
 │   │   └── src/
-│   │       ├── main.rs           # Async event loop
-│   │       ├── app.rs            # App state + tab management
+│   │       ├── main.rs           # Event loop + all 10 tab views
+│   │       ├── state.rs          # App state, tab enum, data fetch
 │   │       ├── client.rs         # HTTP API client
-│   │       ├── theme.rs          # 15 Tensura themes
-│   │       ├── ui.rs             # Layout + status bar
-│   │       └── views/            # 10 tab views
+│   │       └── theme.rs          # 15 Tensura themes
 │   └── rimuru-desktop/           # Tauri v2 Desktop app
 │       └── src/
 │           ├── main.rs           # Entry point
