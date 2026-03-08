@@ -457,7 +457,11 @@ async fn sync_agent_sessions(
                 let model_lower = model.to_lowercase();
                 let provider = if model_lower.contains("claude") {
                     "anthropic"
-                } else if model_lower.contains("gpt") || model_lower.contains("openai") || model_lower.contains("o3") || model_lower.contains("o1") {
+                } else if model_lower.contains("gpt")
+                    || model_lower.contains("openai")
+                    || model_lower.contains("o3")
+                    || model_lower.contains("o1")
+                {
                     "openai"
                 } else if model_lower.contains("gemini") {
                     "google"
