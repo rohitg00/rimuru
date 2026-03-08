@@ -74,7 +74,10 @@ async fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Resul
                     KeyCode::Char('4') => app.tab = Tab::Costs,
                     KeyCode::Char('5') => app.tab = Tab::Models,
                     KeyCode::Char('6') => app.tab = Tab::Advisor,
-                    KeyCode::Char('7') => app.tab = Tab::Metrics,
+                    KeyCode::Char('7') => app.tab = Tab::Hooks,
+                    KeyCode::Char('8') => app.tab = Tab::Plugins,
+                    KeyCode::Char('9') => app.tab = Tab::Mcp,
+                    KeyCode::Char('0') => app.tab = Tab::Metrics,
                     KeyCode::Down | KeyCode::Char('j') => app.scroll_down(),
                     KeyCode::Up | KeyCode::Char('k') => app.scroll_up(),
                     KeyCode::Char('t') => app.next_theme(),
@@ -108,6 +111,9 @@ fn draw(f: &mut Frame, app: &App) {
         Tab::Costs => draw_costs(f, app, chunks[1]),
         Tab::Models => draw_models(f, app, chunks[1]),
         Tab::Advisor => draw_advisor(f, app, chunks[1]),
+        Tab::Hooks => draw_hooks(f, app, chunks[1]),
+        Tab::Plugins => draw_plugins(f, app, chunks[1]),
+        Tab::Mcp => draw_mcp(f, app, chunks[1]),
         Tab::Metrics => draw_metrics(f, app, chunks[1]),
     }
 
@@ -153,7 +159,7 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let help = Span::styled(
-        " Tab:switch  1-7:jump  j/k:scroll  t:theme  r:refresh  q:quit ",
+        " Tab:switch  1-0:jump  j/k:scroll  t:theme  r:refresh  q:quit ",
         Style::default().fg(th.text_dim),
     );
 
@@ -759,6 +765,274 @@ fn draw_advisor(f: &mut Frame, app: &App, area: Rect) {
     );
 
     f.render_widget(table, chunks[1]);
+}
+
+fn draw_hooks(f: &mut Frame, app: &App, area: Rect) {
+    let th = app.theme();
+    let header = Row::new(vec!["Name", "Event", "Matcher", "Plugin", "Enabled"])
+        .style(Style::default().fg(th.accent).add_modifier(Modifier::BOLD));
+
+    let rows: Vec<Row> = app
+        .hooks
+        .iter()
+        .enumerate()
+        .map(|(i, h)| {
+            let name = val_str(h, "name");
+            let display = if name.is_empty() {
+                truncate_str(&val_str(h, "id"), 30)
+            } else {
+                truncate_str(&name, 30)
+            };
+            let event = val_str(h, "event_type");
+            let event_color = match event.as_str() {
+                "PreToolUse" | "PostToolUse" => th.accent,
+                "Stop" | "SessionStart" | "SessionEnd" => th.success,
+                "UserPromptSubmit" => th.warning,
+                _ => th.text_dim,
+            };
+            let enabled = h.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+            let enabled_color = if enabled { th.success } else { th.text_dim };
+            let matcher = h.get("matcher").and_then(|v| v.as_str()).unwrap_or("-");
+            let plugin = h.get("plugin_id").and_then(|v| v.as_str()).unwrap_or("-");
+
+            let row = Row::new(vec![
+                Cell::from(display),
+                Cell::from(Span::styled(event, Style::default().fg(event_color))),
+                Cell::from(matcher.to_string()),
+                Cell::from(truncate_str(plugin, 20)),
+                Cell::from(Span::styled(
+                    if enabled { "Yes" } else { "No" },
+                    Style::default().fg(enabled_color),
+                )),
+            ]);
+            if i == app.scroll {
+                row.style(Style::default().bg(th.selection))
+            } else {
+                row
+            }
+        })
+        .collect();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Percentage(30),
+            Constraint::Percentage(20),
+            Constraint::Percentage(15),
+            Constraint::Percentage(20),
+            Constraint::Percentage(10),
+        ],
+    )
+    .header(header)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border))
+            .title(Span::styled(
+                format!(" Hooks ({}) ", app.hooks.len()),
+                Style::default().fg(th.text),
+            )),
+    );
+
+    f.render_widget(table, area);
+}
+
+fn draw_plugins(f: &mut Frame, app: &App, area: Rect) {
+    let th = app.theme();
+    let header = Row::new(vec![
+        "Name", "Version", "Author", "Language", "Enabled", "Hooks",
+    ])
+    .style(Style::default().fg(th.accent).add_modifier(Modifier::BOLD));
+
+    let rows: Vec<Row> = app
+        .plugins
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let enabled = p.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+            let enabled_color = if enabled { th.success } else { th.text_dim };
+            let hook_count = p
+                .get("hooks")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+
+            let row = Row::new(vec![
+                Cell::from(val_str(p, "name")),
+                Cell::from(val_str(p, "version")),
+                Cell::from(
+                    p.get("author")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("-")
+                        .to_string(),
+                ),
+                Cell::from(val_str(p, "language")),
+                Cell::from(Span::styled(
+                    if enabled { "Yes" } else { "No" },
+                    Style::default().fg(enabled_color),
+                )),
+                Cell::from(format!("{}", hook_count)),
+            ]);
+            if i == app.scroll {
+                row.style(Style::default().bg(th.selection))
+            } else {
+                row
+            }
+        })
+        .collect();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Percentage(25),
+            Constraint::Percentage(12),
+            Constraint::Percentage(18),
+            Constraint::Percentage(13),
+            Constraint::Percentage(12),
+            Constraint::Percentage(10),
+        ],
+    )
+    .header(header)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border))
+            .title(Span::styled(
+                format!(" Plugins ({}) ", app.plugins.len()),
+                Style::default().fg(th.text),
+            )),
+    );
+
+    f.render_widget(table, area);
+}
+
+fn draw_mcp(f: &mut Frame, app: &App, area: Rect) {
+    let th = app.theme();
+
+    if app.mcp_servers.is_empty() {
+        let p = Paragraph::new("No MCP servers configured")
+            .style(Style::default().fg(th.text_dim))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(th.border))
+                    .title(Span::styled(" MCP Servers ", Style::default().fg(th.text))),
+            );
+        f.render_widget(p, area);
+        return;
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    let header = Row::new(vec!["Name", "Command", "Source", "Enabled"])
+        .style(Style::default().fg(th.accent).add_modifier(Modifier::BOLD));
+
+    let rows: Vec<Row> = app
+        .mcp_servers
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let enabled = s.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+            let enabled_color = if enabled { th.success } else { th.text_dim };
+
+            let row = Row::new(vec![
+                Cell::from(val_str(s, "name")),
+                Cell::from(val_str(s, "command")),
+                Cell::from(val_str(s, "source")),
+                Cell::from(Span::styled(
+                    if enabled { "Yes" } else { "No" },
+                    Style::default().fg(enabled_color),
+                )),
+            ]);
+            if i == app.scroll {
+                row.style(Style::default().bg(th.selection))
+            } else {
+                row
+            }
+        })
+        .collect();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Percentage(25),
+            Constraint::Percentage(30),
+            Constraint::Percentage(25),
+            Constraint::Percentage(15),
+        ],
+    )
+    .header(header)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border))
+            .title(Span::styled(
+                format!(" MCP Servers ({}) ", app.mcp_servers.len()),
+                Style::default().fg(th.text),
+            )),
+    );
+
+    f.render_widget(table, chunks[0]);
+
+    let detail_lines: Vec<Line> = if let Some(server) = app.mcp_servers.get(app.scroll) {
+        let args = server
+            .get("args")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .unwrap_or_default();
+        vec![
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  Command:  ", Style::default().fg(th.text_dim)),
+                Span::styled(val_str(server, "command"), Style::default().fg(th.text)),
+            ]),
+            Line::from(vec![
+                Span::styled("  Args:     ", Style::default().fg(th.text_dim)),
+                Span::styled(args, Style::default().fg(th.text)),
+            ]),
+            Line::from(vec![
+                Span::styled("  Source:   ", Style::default().fg(th.text_dim)),
+                Span::styled(val_str(server, "source"), Style::default().fg(th.accent)),
+            ]),
+        ]
+    } else {
+        vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "  Select a server to view details",
+                Style::default().fg(th.text_dim),
+            )),
+        ]
+    };
+
+    let detail = Paragraph::new(detail_lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border))
+            .title(Span::styled(
+                " Server Details ",
+                Style::default().fg(th.text),
+            )),
+    );
+
+    f.render_widget(detail, chunks[1]);
+}
+
+fn truncate_str(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(max.saturating_sub(3)).collect();
+        format!("{}...", truncated)
+    }
 }
 
 fn draw_metrics(f: &mut Frame, app: &App, area: Rect) {

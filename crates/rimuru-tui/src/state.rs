@@ -11,6 +11,9 @@ pub enum Tab {
     Costs,
     Models,
     Advisor,
+    Hooks,
+    Plugins,
+    Mcp,
     Metrics,
 }
 
@@ -23,6 +26,9 @@ impl Tab {
             Tab::Costs,
             Tab::Models,
             Tab::Advisor,
+            Tab::Hooks,
+            Tab::Plugins,
+            Tab::Mcp,
             Tab::Metrics,
         ]
     }
@@ -35,6 +41,9 @@ impl Tab {
             Tab::Costs => "Costs",
             Tab::Models => "Models",
             Tab::Advisor => "Advisor",
+            Tab::Hooks => "Hooks",
+            Tab::Plugins => "Plugins",
+            Tab::Mcp => "MCP",
             Tab::Metrics => "Metrics",
         }
     }
@@ -62,6 +71,9 @@ pub struct App {
     pub metrics: Value,
     pub activity: Vec<Value>,
     pub total_savings: f64,
+    pub hooks: Vec<Value>,
+    pub plugins: Vec<Value>,
+    pub mcp_servers: Vec<Value>,
 
     catalog_summary_cache: (usize, usize, usize, usize),
 }
@@ -93,6 +105,9 @@ impl App {
             metrics: Value::Null,
             activity: Vec::new(),
             total_savings: 0.0,
+            hooks: Vec::new(),
+            plugins: Vec::new(),
+            mcp_servers: Vec::new(),
             catalog_summary_cache: (0, 0, 0, 0),
         }
     }
@@ -135,6 +150,9 @@ impl App {
             Tab::Costs => self.daily_costs.len(),
             Tab::Models => self.models.len(),
             Tab::Advisor => self.catalog.len(),
+            Tab::Hooks => self.hooks.len(),
+            Tab::Plugins => self.plugins.len(),
+            Tab::Mcp => self.mcp_servers.len(),
             _ => 0,
         }
     }
@@ -242,6 +260,27 @@ impl App {
                             .and_then(|v| v.as_u64())
                             .unwrap_or(0) as usize;
                         self.catalog_summary_cache = (perfect, good, marginal, total);
+                    }
+                }
+            }
+            Tab::Hooks => {
+                if let Some(v) = client.get("/hooks").await {
+                    if let Some(arr) = v.as_array() {
+                        self.hooks = arr.clone();
+                    }
+                }
+            }
+            Tab::Plugins => {
+                if let Some(v) = client.get("/plugins").await {
+                    if let Some(arr) = v.as_array() {
+                        self.plugins = arr.clone();
+                    }
+                }
+            }
+            Tab::Mcp => {
+                if let Some(v) = client.get("/mcp").await {
+                    if let Some(arr) = v.as_array() {
+                        self.mcp_servers = arr.clone();
                     }
                 }
             }
