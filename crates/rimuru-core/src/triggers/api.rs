@@ -230,8 +230,13 @@ const ROUTES: &[Route] = &[
     },
     Route {
         method: "POST",
-        path: "/api/plugins/:id/:action",
-        function_id: "rimuru.plugins.toggle",
+        path: "/api/plugins/:id/enable",
+        function_id: "rimuru.plugins.start",
+    },
+    Route {
+        method: "POST",
+        path: "/api/plugins/:id/disable",
+        function_id: "rimuru.plugins.stop",
     },
     Route {
         method: "GET",

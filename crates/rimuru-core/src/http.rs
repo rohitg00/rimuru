@@ -332,11 +332,8 @@ async fn api_health(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
-async fn api_hooks_list(State(state): State<AppState>) -> impl IntoResponse {
-    match call_function(&state.kv, "rimuru.hooks.list", json!({})).await {
-        Ok(v) => Json(unwrap_field(v, "hooks")).into_response(),
-        Err(s) => s.into_response(),
-    }
+async fn api_hooks_list() -> impl IntoResponse {
+    Json(Value::Array(discovery::discover_hooks().await))
 }
 
 async fn api_hooks_register(
@@ -375,11 +372,8 @@ async fn api_hooks_executions() -> impl IntoResponse {
         .into_response()
 }
 
-async fn api_plugins_list(State(state): State<AppState>) -> impl IntoResponse {
-    match call_function(&state.kv, "rimuru.plugins.list", json!({})).await {
-        Ok(v) => Json(unwrap_field(v, "plugins")).into_response(),
-        Err(s) => s.into_response(),
-    }
+async fn api_plugins_list() -> impl IntoResponse {
+    Json(Value::Array(discovery::discover_plugins().await))
 }
 
 async fn api_plugins_install(
@@ -412,18 +406,12 @@ async fn api_plugins_toggle(
     State(state): State<AppState>,
     Path((id, action)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    let func = match action.as_str() {
-        "start" | "enable" => "rimuru.plugins.start",
-        "stop" | "disable" => "rimuru.plugins.stop",
-        _ => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": "invalid action"})),
-            )
-                .into_response()
-        }
+    let function_id = if action == "enable" {
+        "rimuru.plugins.start"
+    } else {
+        "rimuru.plugins.stop"
     };
-    match call_function(&state.kv, func, json!({"plugin_id": id})).await {
+    match call_function(&state.kv, function_id, json!({"id": id})).await {
         Ok(v) => Json(v).into_response(),
         Err(s) => s.into_response(),
     }

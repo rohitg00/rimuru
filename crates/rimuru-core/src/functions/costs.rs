@@ -124,6 +124,45 @@ fn register_record(iii: &III, kv: &StateKV) {
                 .await
                 .map_err(kv_err)?;
 
+            let today = Utc::now().format("%Y-%m-%d").to_string();
+            kv.increment(
+                "cost_daily",
+                &today,
+                "total_cost_cents",
+                (record.total_cost * 100.0) as i64,
+            )
+            .await
+            .map_err(kv_err)?;
+            kv.increment("cost_daily", &today, "record_count", 1)
+                .await
+                .map_err(kv_err)?;
+
+            let agent_cost_key = format!("{}::{}", agent_id, today);
+            kv.increment(
+                "cost_agent",
+                &agent_cost_key,
+                "total_cost_cents",
+                (record.total_cost * 100.0) as i64,
+            )
+            .await
+            .map_err(kv_err)?;
+            kv.increment(
+                "cost_agent",
+                &agent_cost_key,
+                "input_tokens",
+                input_tokens as i64,
+            )
+            .await
+            .map_err(kv_err)?;
+            kv.increment(
+                "cost_agent",
+                &agent_cost_key,
+                "output_tokens",
+                output_tokens as i64,
+            )
+            .await
+            .map_err(kv_err)?;
+
             Ok(json!({
                 "record": record,
                 "recorded": true

@@ -8,33 +8,7 @@ use crate::state::StateKV;
 pub fn register(iii: &III, kv: &StateKV) {
     register_dispatch(iii, kv);
     register_register(iii, kv);
-    register_delete(iii, kv);
     register_list(iii, kv);
-}
-
-fn register_delete(iii: &III, kv: &StateKV) {
-    let kv = kv.clone();
-    iii.register_function("rimuru.hooks.delete", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let hook_id = require_str(&input, "hook_id")?;
-
-            let hooks: Vec<HookRegistration> = kv.list("hooks").await.map_err(kv_err)?;
-
-            let found = hooks.iter().find(|h| {
-                let key = format!("{}::{}", h.event_type, h.function_id);
-                key == hook_id
-            });
-
-            if let Some(hook) = found {
-                let key = format!("{}::{}", hook.event_type, hook.function_id);
-                kv.delete("hooks", &key).await.map_err(kv_err)?;
-                Ok(json!({ "deleted": true, "hook_id": hook_id }))
-            } else {
-                Ok(json!({ "deleted": false, "error": "hook not found" }))
-            }
-        }
-    });
 }
 
 fn register_dispatch(iii: &III, kv: &StateKV) {
