@@ -1,15 +1,9 @@
-name: rimuru
-version: "0.2.0"
-
-port: 49134
-
 modules:
-  - class: modules::api::RestApiModule
+  - name: iii-http
     config:
       port: 3111
-      host: 127.0.0.1
+      host: 0.0.0.0
       default_timeout: 30000
-      concurrency_request_limit: 1024
       cors:
         allowed_origins:
           - "*"
@@ -20,62 +14,50 @@ modules:
           - DELETE
           - OPTIONS
 
-  - class: modules::stream::StreamModule
+  - name: iii-stream
     config:
       port: 3112
       host: 127.0.0.1
       adapter:
-        class: modules::stream::adapters::KvStore
+        name: kv
         config:
           store_method: file_based
           file_path: ./data/stream_store
           save_interval_ms: 5000
 
-  - class: modules::state::StateModule
+  - name: iii-state
     config:
       adapter:
-        class: modules::state::adapters::KvStore
+        name: kv
         config:
           store_method: file_based
           file_path: ./data/state_store
           save_interval_ms: 5000
 
-  - class: modules::queue::QueueModule
+  - name: iii-queue
     config:
-      queue_configs:
-        default:
-          max_retries: 3
-          concurrency: 5
-          type: standard
       adapter:
-        class: modules::queue::BuiltinQueueAdapter
+        name: builtin
         config:
-          max_attempts: 3
-          backoff_ms: 1000
-          concurrency: 10
-          poll_interval_ms: 100
-          mode: concurrent
           store_method: file_based
           file_path: ./data/queue_store
           save_interval_ms: 5000
 
-  - class: modules::pubsub::PubSubModule
+  - name: iii-pubsub
     config:
       adapter:
-        class: modules::pubsub::LocalAdapter
+        name: local
 
-  - class: modules::cron::CronModule
+  - name: iii-cron
     config:
       adapter:
-        class: modules::cron::KvCronAdapter
+        name: kv
         config:
-          lock_ttl_ms: 30000
-          lock_index: cron_locks
           store_method: file_based
           file_path: ./data/cron_locks
           save_interval_ms: 5000
 
-  - class: modules::observability::OtelModule
+  - name: iii-observability
     config:
       enabled: true
       service_name: rimuru

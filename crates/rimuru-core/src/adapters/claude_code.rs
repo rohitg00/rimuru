@@ -313,6 +313,22 @@ impl ClaudeCodeAdapter {
                 }
 
                 if turn_input > 0 || turn_output > 0 {
+                    let estimated_from_content: u64 = tool_calls
+                        .iter()
+                        .map(|tc| tc.input_tokens_estimate + tc.output_tokens_estimate)
+                        .sum::<u64>();
+
+                    let actual_total = turn_input + turn_output;
+                    if actual_total > estimated_from_content {
+                        let unattributed = actual_total - estimated_from_content;
+                        match role {
+                            "assistant" => breakdown.conversation_tokens += unattributed,
+                            "user" | "human" => breakdown.user_tokens += unattributed,
+                            "system" => breakdown.system_prompt_tokens += unattributed,
+                            _ => breakdown.conversation_tokens += unattributed,
+                        }
+                    }
+
                     breakdown.turns.push(TurnRecord {
                         turn_index,
                         role: role.to_string(),

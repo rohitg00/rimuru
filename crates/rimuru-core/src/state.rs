@@ -79,10 +79,7 @@ impl StateKV {
             .map_err(|e| RimuruError::Bridge(e.to_string()))?;
 
         if let Some(arr) = result.as_array() {
-            let keys: Vec<String> = arr
-                .iter()
-                .filter_map(|v| v.get("key").and_then(|k| k.as_str()).map(|s| s.to_string()))
-                .collect();
+            let keys: Vec<String> = arr.iter().enumerate().map(|(i, _)| i.to_string()).collect();
             Ok(keys)
         } else {
             warn!(
@@ -110,11 +107,7 @@ impl StateKV {
         if let Some(arr) = result.as_array() {
             let items: Vec<T> = arr
                 .iter()
-                .filter_map(|entry| {
-                    entry
-                        .get("value")
-                        .and_then(|v| serde_json::from_value::<T>(v.clone()).ok())
-                })
+                .filter_map(|entry| serde_json::from_value::<T>(entry.clone()).ok())
                 .collect();
             Ok(items)
         } else {
