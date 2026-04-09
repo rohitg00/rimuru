@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use iii_sdk::III;
+use iii_sdk::{III, TriggerRequest};
 use rimuru_core::StateKV;
 use serde_json::Value;
 use tokio::sync::RwLock;
@@ -26,7 +26,12 @@ impl AppState {
 
     pub async fn call(&self, function_id: &str, input: Value) -> Result<Value, String> {
         self.iii
-            .trigger(function_id, input)
+            .trigger(TriggerRequest {
+                function_id: function_id.to_string(),
+                payload: input,
+                action: None,
+                timeout_ms: Some(30_000),
+            })
             .await
             .map_err(|e| format!("{}: {}", function_id, e))
     }

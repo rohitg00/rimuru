@@ -5,15 +5,15 @@ use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Cell, Gauge, List, ListItem, Paragraph, Row, Table, Tabs, Wrap},
-    Frame, Terminal,
 };
 use serde_json::Value;
 
@@ -59,64 +59,64 @@ async fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Resul
 
         terminal.draw(|f| draw(f, &app))?;
 
-        if event::poll(Duration::from_millis(200))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press {
-                    continue;
+        if event::poll(Duration::from_millis(200))?
+            && let Event::Key(key) = event::read()?
+        {
+            if key.kind != KeyEventKind::Press {
+                continue;
+            }
+            match key.code {
+                KeyCode::Char('q') => return Ok(()),
+                KeyCode::Tab => app.next_tab(),
+                KeyCode::BackTab => app.prev_tab(),
+                KeyCode::Char('1') => {
+                    app.tab = Tab::Dashboard;
+                    app.scroll = 0;
                 }
-                match key.code {
-                    KeyCode::Char('q') => return Ok(()),
-                    KeyCode::Tab => app.next_tab(),
-                    KeyCode::BackTab => app.prev_tab(),
-                    KeyCode::Char('1') => {
-                        app.tab = Tab::Dashboard;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('2') => {
-                        app.tab = Tab::Agents;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('3') => {
-                        app.tab = Tab::Sessions;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('4') => {
-                        app.tab = Tab::Costs;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('5') => {
-                        app.tab = Tab::Models;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('6') => {
-                        app.tab = Tab::Advisor;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('7') => {
-                        app.tab = Tab::Hooks;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('8') => {
-                        app.tab = Tab::Plugins;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('9') => {
-                        app.tab = Tab::Mcp;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Char('0') => {
-                        app.tab = Tab::Metrics;
-                        app.scroll = 0;
-                    }
-                    KeyCode::Down | KeyCode::Char('j') => app.scroll_down(),
-                    KeyCode::Up | KeyCode::Char('k') => app.scroll_up(),
-                    KeyCode::Char('t') => app.next_theme(),
-                    KeyCode::Char('r') => {
-                        app.fetch(&client).await;
-                        last_fetch = Instant::now();
-                    }
-                    _ => {}
+                KeyCode::Char('2') => {
+                    app.tab = Tab::Agents;
+                    app.scroll = 0;
                 }
+                KeyCode::Char('3') => {
+                    app.tab = Tab::Sessions;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('4') => {
+                    app.tab = Tab::Costs;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('5') => {
+                    app.tab = Tab::Models;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('6') => {
+                    app.tab = Tab::Advisor;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('7') => {
+                    app.tab = Tab::Hooks;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('8') => {
+                    app.tab = Tab::Plugins;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('9') => {
+                    app.tab = Tab::Mcp;
+                    app.scroll = 0;
+                }
+                KeyCode::Char('0') => {
+                    app.tab = Tab::Metrics;
+                    app.scroll = 0;
+                }
+                KeyCode::Down | KeyCode::Char('j') => app.scroll_down(),
+                KeyCode::Up | KeyCode::Char('k') => app.scroll_up(),
+                KeyCode::Char('t') => app.next_theme(),
+                KeyCode::Char('r') => {
+                    app.fetch(&client).await;
+                    last_fetch = Instant::now();
+                }
+                _ => {}
             }
         }
     }

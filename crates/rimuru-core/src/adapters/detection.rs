@@ -93,16 +93,13 @@ pub fn detect_installed_agents() -> Vec<AgentType> {
 
     for detector in &detectors {
         let found = match detector.agent_type {
-            AgentType::Copilot => {
-                let has_config = detector.paths.iter().any(|p| {
-                    if p.ends_with("extensions") {
-                        copilot_extension_exists(p)
-                    } else {
-                        p.exists()
-                    }
-                });
-                has_config
-            }
+            AgentType::Copilot => detector.paths.iter().any(|p| {
+                if p.ends_with("extensions") {
+                    copilot_extension_exists(p)
+                } else {
+                    p.exists()
+                }
+            }),
             _ => detector.paths.iter().any(|p| p.exists()),
         };
 
@@ -144,11 +141,7 @@ pub fn detect_agent_config_path(agent_type: AgentType) -> Option<PathBuf> {
         AgentType::OpenCode => home.join(".opencode"),
     };
 
-    if path.exists() {
-        Some(path)
-    } else {
-        None
-    }
+    if path.exists() { Some(path) } else { None }
 }
 
 pub fn detect_all_with_paths() -> Vec<(AgentType, PathBuf)> {

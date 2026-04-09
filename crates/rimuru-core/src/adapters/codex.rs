@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use std::path::PathBuf;
 
-use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::Value;
 use tracing::{debug, warn};
@@ -94,15 +94,15 @@ impl CodexAdapter {
             let data: Value = serde_json::from_str(&content)?;
 
             if let Some(sess) = data.get("session") {
-                if let Some(id) = sess.get("id").and_then(|v| v.as_str()) {
-                    if let Ok(parsed) = uuid::Uuid::parse_str(id) {
-                        session.id = parsed;
-                    }
+                if let Some(id) = sess.get("id").and_then(|v| v.as_str())
+                    && let Ok(parsed) = uuid::Uuid::parse_str(id)
+                {
+                    session.id = parsed;
                 }
-                if let Some(ts) = sess.get("timestamp").and_then(|v| v.as_str()) {
-                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) {
-                        session.started_at = dt.with_timezone(&Utc);
-                    }
+                if let Some(ts) = sess.get("timestamp").and_then(|v| v.as_str())
+                    && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts)
+                {
+                    session.started_at = dt.with_timezone(&Utc);
                 }
             }
 
@@ -174,13 +174,13 @@ impl CodexAdapter {
                 Self::estimate_cost(model, session.input_tokens, session.output_tokens);
         }
 
-        if let Ok(metadata) = std::fs::metadata(path) {
-            if let Ok(modified) = metadata.modified() {
-                let elapsed = modified.elapsed().unwrap_or_default();
-                if elapsed.as_secs() > 3600 {
-                    session.status = SessionStatus::Completed;
-                    session.ended_at = Some(chrono::DateTime::<Utc>::from(modified));
-                }
+        if let Ok(metadata) = std::fs::metadata(path)
+            && let Ok(modified) = metadata.modified()
+        {
+            let elapsed = modified.elapsed().unwrap_or_default();
+            if elapsed.as_secs() > 3600 {
+                session.status = SessionStatus::Completed;
+                session.ended_at = Some(chrono::DateTime::<Utc>::from(modified));
             }
         }
 

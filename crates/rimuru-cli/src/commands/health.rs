@@ -1,11 +1,18 @@
 use anyhow::Result;
-use iii_sdk::III;
+use iii_sdk::{III, TriggerRequest};
 use serde_json::json;
 
 use crate::output::{self, OutputFormat};
 
 pub async fn check(iii: &III, format: &OutputFormat) -> Result<()> {
-    let result = iii.trigger("rimuru.health.check", json!({})).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.health.check".to_string(),
+            payload: json!({}),
+            action: None,
+            timeout_ms: Some(5_000),
+        })
+        .await?;
     println!("{}", output::format_health(&result, format));
 
     let status = result

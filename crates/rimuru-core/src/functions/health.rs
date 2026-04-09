@@ -1,6 +1,6 @@
 use chrono::Utc;
-use iii_sdk::III;
-use serde_json::{json, Value};
+use iii_sdk::{III, RegisterFunctionMessage};
+use serde_json::{Value, json};
 
 use crate::models::{
     Agent, AgentStatus, PluginState, PluginStatus, Session, SessionStatus, SystemMetrics,
@@ -146,39 +146,42 @@ fn register_check(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
     let boot_time = Utc::now();
 
-    iii.register_function("rimuru.health.check", move |_input: Value| {
-        let kv = kv.clone();
-        let boot_time = boot_time;
-        async move {
-            let checks = [
-                check_state(&kv).await,
-                check_agents(&kv).await,
-                check_sessions(&kv).await,
-                check_plugins(&kv).await,
-                check_metrics(&kv).await,
-            ];
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.health.check".to_string()),
+        move |_input: Value| {
+            let kv = kv.clone();
+            let boot_time = boot_time;
+            async move {
+                let checks = [
+                    check_state(&kv).await,
+                    check_agents(&kv).await,
+                    check_sessions(&kv).await,
+                    check_plugins(&kv).await,
+                    check_metrics(&kv).await,
+                ];
 
-            let overall_healthy = checks.iter().all(|c| c.healthy);
-            let check_json: Vec<Value> = checks.iter().map(|c| c.to_json()).collect();
+                let overall_healthy = checks.iter().all(|c| c.healthy);
+                let check_json: Vec<Value> = checks.iter().map(|c| c.to_json()).collect();
 
-            let uptime_secs = (Utc::now() - boot_time).num_seconds().max(0) as u64;
-            let uptime_display = if uptime_secs >= 86400 {
-                format!("{}d {}h", uptime_secs / 86400, (uptime_secs % 86400) / 3600)
-            } else if uptime_secs >= 3600 {
-                format!("{}h {}m", uptime_secs / 3600, (uptime_secs % 3600) / 60)
-            } else {
-                format!("{}m {}s", uptime_secs / 60, uptime_secs % 60)
-            };
+                let uptime_secs = (Utc::now() - boot_time).num_seconds().max(0) as u64;
+                let uptime_display = if uptime_secs >= 86400 {
+                    format!("{}d {}h", uptime_secs / 86400, (uptime_secs % 86400) / 3600)
+                } else if uptime_secs >= 3600 {
+                    format!("{}h {}m", uptime_secs / 3600, (uptime_secs % 3600) / 60)
+                } else {
+                    format!("{}m {}s", uptime_secs / 60, uptime_secs % 60)
+                };
 
-            Ok(json!({
-                "status": if overall_healthy { "healthy" } else { "degraded" },
-                "uptime_secs": uptime_secs,
-                "uptime": uptime_display,
-                "boot_time": boot_time.to_rfc3339(),
-                "timestamp": Utc::now().to_rfc3339(),
-                "version": env!("CARGO_PKG_VERSION"),
-                "checks": check_json
-            }))
-        }
-    });
+                Ok(json!({
+                    "status": if overall_healthy { "healthy" } else { "degraded" },
+                    "uptime_secs": uptime_secs,
+                    "uptime": uptime_display,
+                    "boot_time": boot_time.to_rfc3339(),
+                    "timestamp": Utc::now().to_rfc3339(),
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "checks": check_json
+                }))
+            }
+        },
+    );
 }

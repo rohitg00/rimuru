@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub async fn discover_plugins() -> Vec<Value> {
     let home = match dirs::home_dir() {
@@ -189,17 +189,17 @@ pub async fn discover_mcp_servers() -> Vec<Value> {
     let mut servers = Vec::new();
 
     let claude_code_settings = home.join(".claude/settings.json");
-    if let Ok(c) = tokio::fs::read_to_string(&claude_code_settings).await {
-        if let Ok(v) = serde_json::from_str::<Value>(&c) {
-            extract_mcp_servers(&v, "Claude Code", &mut servers);
-        }
+    if let Ok(c) = tokio::fs::read_to_string(&claude_code_settings).await
+        && let Ok(v) = serde_json::from_str::<Value>(&c)
+    {
+        extract_mcp_servers(&v, "Claude Code", &mut servers);
     }
 
     let claude_desktop = home.join("Library/Application Support/Claude/claude_desktop_config.json");
-    if let Ok(c) = tokio::fs::read_to_string(&claude_desktop).await {
-        if let Ok(v) = serde_json::from_str::<Value>(&c) {
-            extract_mcp_servers(&v, "Claude Desktop", &mut servers);
-        }
+    if let Ok(c) = tokio::fs::read_to_string(&claude_desktop).await
+        && let Ok(v) = serde_json::from_str::<Value>(&c)
+    {
+        extract_mcp_servers(&v, "Claude Desktop", &mut servers);
     }
 
     servers

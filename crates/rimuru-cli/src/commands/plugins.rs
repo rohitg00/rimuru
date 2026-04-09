@@ -1,11 +1,18 @@
 use anyhow::Result;
-use iii_sdk::III;
+use iii_sdk::{III, TriggerRequest};
 use serde_json::json;
 
 use crate::output::{self, OutputFormat};
 
 pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
-    let result = iii.trigger("rimuru.plugins.list", json!({})).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.plugins.list".to_string(),
+            payload: json!({}),
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
     let plugins = if let Some(arr) = result.get("plugins").and_then(|v| v.as_array()) {
         arr.clone()
     } else {
@@ -18,7 +25,12 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
 pub async fn install(iii: &III, plugin_path: &str, format: &OutputFormat) -> Result<()> {
     println!("Installing plugin from {plugin_path}...");
     let result = iii
-        .trigger("rimuru.plugins.install", json!({"path": plugin_path}))
+        .trigger(TriggerRequest {
+            function_id: "rimuru.plugins.install".to_string(),
+            payload: json!({"path": plugin_path}),
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
 
     let success = result
@@ -40,7 +52,12 @@ pub async fn install(iii: &III, plugin_path: &str, format: &OutputFormat) -> Res
 
 pub async fn uninstall(iii: &III, plugin_id: &str, format: &OutputFormat) -> Result<()> {
     let result = iii
-        .trigger("rimuru.plugins.uninstall", json!({"plugin_id": plugin_id}))
+        .trigger(TriggerRequest {
+            function_id: "rimuru.plugins.uninstall".to_string(),
+            payload: json!({"plugin_id": plugin_id}),
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
 
     let success = result

@@ -1,5 +1,5 @@
-use iii_sdk::III;
-use serde_json::{json, Value};
+use iii_sdk::{III, RegisterFunctionMessage};
+use serde_json::{Value, json};
 
 use super::sysutil::{kv_err, require_str};
 use crate::state::StateKV;
@@ -35,127 +35,135 @@ fn default_config() -> Value {
 
 fn register_get(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.config.get", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let key = input.get("key").and_then(|v| v.as_str());
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.config.get".to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            async move {
+                let key = input.get("key").and_then(|v| v.as_str());
 
-            match key {
-                Some(k) => {
-                    let value: Option<Value> = kv.get("config", k).await.map_err(kv_err)?;
+                match key {
+                    Some(k) => {
+                        let value: Option<Value> = kv.get("config", k).await.map_err(kv_err)?;
 
-                    let defaults = default_config();
-                    let default_val = defaults.get(k);
+                        let defaults = default_config();
+                        let default_val = defaults.get(k);
 
-                    match value {
-                        Some(v) => Ok(json!({
-                            "key": k,
-                            "value": v,
-                            "source": "user"
-                        })),
-                        None => match default_val {
-                            Some(d) => Ok(json!({
+                        match value {
+                            Some(v) => Ok(json!({
                                 "key": k,
-                                "value": d,
-                                "source": "default"
+                                "value": v,
+                                "source": "user"
                             })),
-                            None => Err(iii_sdk::IIIError::Handler(format!(
-                                "unknown config key: {}",
-                                k
-                            ))),
-                        },
-                    }
-                }
-                None => {
-                    let defaults = default_config();
-                    let default_map = defaults.as_object().cloned().unwrap_or_default();
-
-                    let mut merged = serde_json::Map::new();
-                    let mut sources = serde_json::Map::new();
-
-                    for (k, default_val) in &default_map {
-                        let stored: Option<Value> = kv.get("config", k).await.map_err(kv_err)?;
-
-                        match stored {
-                            Some(v) => {
-                                merged.insert(k.clone(), v);
-                                sources.insert(k.clone(), json!("user"));
-                            }
-                            None => {
-                                merged.insert(k.clone(), default_val.clone());
-                                sources.insert(k.clone(), json!("default"));
-                            }
+                            None => match default_val {
+                                Some(d) => Ok(json!({
+                                    "key": k,
+                                    "value": d,
+                                    "source": "default"
+                                })),
+                                None => Err(iii_sdk::IIIError::Handler(format!(
+                                    "unknown config key: {}",
+                                    k
+                                ))),
+                            },
                         }
                     }
+                    None => {
+                        let defaults = default_config();
+                        let default_map = defaults.as_object().cloned().unwrap_or_default();
 
-                    let custom_keys = kv.list_keys("config").await.map_err(kv_err)?;
+                        let mut merged = serde_json::Map::new();
+                        let mut sources = serde_json::Map::new();
 
-                    for k in custom_keys {
-                        if k.starts_with("search::") || k == "__health_probe" {
-                            continue;
-                        }
-                        if !merged.contains_key(&k) {
-                            let val: Option<Value> = kv.get("config", &k).await.map_err(kv_err)?;
-                            if let Some(v) = val {
-                                merged.insert(k.clone(), v);
-                                sources.insert(k, json!("user"));
+                        for (k, default_val) in &default_map {
+                            let stored: Option<Value> =
+                                kv.get("config", k).await.map_err(kv_err)?;
+
+                            match stored {
+                                Some(v) => {
+                                    merged.insert(k.clone(), v);
+                                    sources.insert(k.clone(), json!("user"));
+                                }
+                                None => {
+                                    merged.insert(k.clone(), default_val.clone());
+                                    sources.insert(k.clone(), json!("default"));
+                                }
                             }
                         }
-                    }
 
-                    Ok(json!({
-                        "config": merged,
-                        "sources": sources
-                    }))
+                        let custom_keys = kv.list_keys("config").await.map_err(kv_err)?;
+
+                        for k in custom_keys {
+                            if k.starts_with("search::") || k == "__health_probe" {
+                                continue;
+                            }
+                            if !merged.contains_key(&k) {
+                                let val: Option<Value> =
+                                    kv.get("config", &k).await.map_err(kv_err)?;
+                                if let Some(v) = val {
+                                    merged.insert(k.clone(), v);
+                                    sources.insert(k, json!("user"));
+                                }
+                            }
+                        }
+
+                        Ok(json!({
+                            "config": merged,
+                            "sources": sources
+                        }))
+                    }
                 }
             }
-        }
-    });
+        },
+    );
 }
 
 fn register_set(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.config.set", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let key = require_str(&input, "key")?;
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.config.set".to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            async move {
+                let key = require_str(&input, "key")?;
 
-            let value = input
-                .get("value")
-                .ok_or_else(|| iii_sdk::IIIError::Handler("value is required".into()))?
-                .clone();
+                let value = input
+                    .get("value")
+                    .ok_or_else(|| iii_sdk::IIIError::Handler("value is required".into()))?
+                    .clone();
 
-            let defaults = default_config();
-            if let Some(default_val) = defaults.get(&key) {
-                let type_matches = matches!(
-                    (default_val, &value),
-                    (Value::Bool(_), Value::Bool(_))
-                        | (Value::Number(_), Value::Number(_))
-                        | (Value::String(_), Value::String(_))
-                );
+                let defaults = default_config();
+                if let Some(default_val) = defaults.get(&key) {
+                    let type_matches = matches!(
+                        (default_val, &value),
+                        (Value::Bool(_), Value::Bool(_))
+                            | (Value::Number(_), Value::Number(_))
+                            | (Value::String(_), Value::String(_))
+                    );
 
-                if !type_matches {
-                    return Err(iii_sdk::IIIError::Handler(format!(
-                        "type mismatch for {}: expected {}, got {}",
-                        key,
-                        value_type_name(default_val),
-                        value_type_name(&value)
-                    )));
+                    if !type_matches {
+                        return Err(iii_sdk::IIIError::Handler(format!(
+                            "type mismatch for {}: expected {}, got {}",
+                            key,
+                            value_type_name(default_val),
+                            value_type_name(&value)
+                        )));
+                    }
                 }
+
+                let old_value: Option<Value> = kv.get("config", &key).await.map_err(kv_err)?;
+
+                kv.set("config", &key, &value).await.map_err(kv_err)?;
+
+                Ok(json!({
+                    "key": key,
+                    "value": value,
+                    "old_value": old_value,
+                    "updated": true
+                }))
             }
-
-            let old_value: Option<Value> = kv.get("config", &key).await.map_err(kv_err)?;
-
-            kv.set("config", &key, &value).await.map_err(kv_err)?;
-
-            Ok(json!({
-                "key": key,
-                "value": value,
-                "old_value": old_value,
-                "updated": true
-            }))
-        }
-    });
+        },
+    );
 }
 
 fn value_type_name(v: &Value) -> &'static str {

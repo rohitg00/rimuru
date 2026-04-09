@@ -1,6 +1,6 @@
 use chrono::Utc;
-use iii_sdk::III;
-use serde_json::{json, Value};
+use iii_sdk::{III, RegisterFunctionMessage};
+use serde_json::{Value, json};
 
 use super::sysutil::{kv_err, require_str};
 use crate::models::{ModelInfo, ModelProvider, ModelSyncStatus};
@@ -272,123 +272,132 @@ fn hardcoded_models() -> Vec<ModelInfo> {
 
 fn register_list(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.models.list", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.models.list".to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            async move {
+                let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
-            let models = if stored.is_empty() {
-                hardcoded_models()
-            } else {
-                stored
-            };
+                let models = if stored.is_empty() {
+                    hardcoded_models()
+                } else {
+                    stored
+                };
 
-            let provider_filter = input
-                .get("provider")
-                .and_then(|v| v.as_str())
-                .and_then(|s| serde_json::from_value::<ModelProvider>(json!(s)).ok());
+                let provider_filter = input
+                    .get("provider")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| serde_json::from_value::<ModelProvider>(json!(s)).ok());
 
-            let filtered: Vec<&ModelInfo> = models
-                .iter()
-                .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
-                .collect();
+                let filtered: Vec<&ModelInfo> = models
+                    .iter()
+                    .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
+                    .collect();
 
-            Ok(json!({
-                "models": filtered,
-                "total": filtered.len()
-            }))
-        }
-    });
+                Ok(json!({
+                    "models": filtered,
+                    "total": filtered.len()
+                }))
+            }
+        },
+    );
 }
 
 fn register_sync(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.models.sync", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let provider_filter = input
-                .get("provider")
-                .and_then(|v| v.as_str())
-                .and_then(|s| serde_json::from_value::<ModelProvider>(json!(s)).ok());
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.models.sync".to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            async move {
+                let provider_filter = input
+                    .get("provider")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| serde_json::from_value::<ModelProvider>(json!(s)).ok());
 
-            let all_models = hardcoded_models();
+                let all_models = hardcoded_models();
 
-            let models_to_sync: Vec<&ModelInfo> = all_models
-                .iter()
-                .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
-                .collect();
+                let models_to_sync: Vec<&ModelInfo> = all_models
+                    .iter()
+                    .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
+                    .collect();
 
-            let mut synced_count = 0usize;
-            let mut sync_statuses: Vec<ModelSyncStatus> = Vec::new();
-            let mut providers_seen = std::collections::HashSet::new();
+                let mut synced_count = 0usize;
+                let mut sync_statuses: Vec<ModelSyncStatus> = Vec::new();
+                let mut providers_seen = std::collections::HashSet::new();
 
-            for model in &models_to_sync {
-                let key = model.key();
-                kv.set("model_info", &key, model).await.map_err(kv_err)?;
-                synced_count += 1;
+                for model in &models_to_sync {
+                    let key = model.key();
+                    kv.set("model_info", &key, model).await.map_err(kv_err)?;
+                    synced_count += 1;
 
-                if providers_seen.insert(model.provider) {
-                    let provider_key = model.provider_key();
-                    let count = models_to_sync
-                        .iter()
-                        .filter(|m| m.provider == model.provider)
-                        .count();
+                    if providers_seen.insert(model.provider) {
+                        let provider_key = model.provider_key();
+                        let count = models_to_sync
+                            .iter()
+                            .filter(|m| m.provider == model.provider)
+                            .count();
 
-                    let status = ModelSyncStatus {
-                        provider: model.provider,
-                        last_sync: Some(Utc::now()),
-                        model_count: count,
-                        error: None,
-                    };
+                        let status = ModelSyncStatus {
+                            provider: model.provider,
+                            last_sync: Some(Utc::now()),
+                            model_count: count,
+                            error: None,
+                        };
 
-                    kv.set("model_sync", provider_key, &status)
-                        .await
-                        .map_err(kv_err)?;
+                        kv.set("model_sync", provider_key, &status)
+                            .await
+                            .map_err(kv_err)?;
 
-                    sync_statuses.push(status);
+                        sync_statuses.push(status);
+                    }
                 }
-            }
 
-            Ok(json!({
-                "synced": synced_count,
-                "providers": sync_statuses,
-                "timestamp": Utc::now().to_rfc3339()
-            }))
-        }
-    });
+                Ok(json!({
+                    "synced": synced_count,
+                    "providers": sync_statuses,
+                    "timestamp": Utc::now().to_rfc3339()
+                }))
+            }
+        },
+    );
 }
 
 fn register_get(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.models.get", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let model_id = require_str(&input, "model_id")?;
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.models.get".to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            async move {
+                let model_id = require_str(&input, "model_id")?;
 
-            let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
+                let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
-            let all_models = if stored.is_empty() {
-                hardcoded_models()
-            } else {
-                stored
-            };
+                let all_models = if stored.is_empty() {
+                    hardcoded_models()
+                } else {
+                    stored
+                };
 
-            let model = all_models.iter().find(|m| m.id == model_id).cloned();
+                let model = all_models.iter().find(|m| m.id == model_id).cloned();
 
-            match model {
-                Some(m) => Ok(json!({
-                    "model": m,
-                    "cost_example": {
-                        "1k_input_1k_output": m.calculate_cost(1000, 1000),
-                        "10k_input_4k_output": m.calculate_cost(10_000, 4_000),
-                        "100k_input_8k_output": m.calculate_cost(100_000, 8_000),
-                    }
-                })),
-                None => Err(iii_sdk::IIIError::Handler(format!(
-                    "model not found: {}",
-                    model_id
-                ))),
+                match model {
+                    Some(m) => Ok(json!({
+                        "model": m,
+                        "cost_example": {
+                            "1k_input_1k_output": m.calculate_cost(1000, 1000),
+                            "10k_input_4k_output": m.calculate_cost(10_000, 4_000),
+                            "100k_input_8k_output": m.calculate_cost(100_000, 8_000),
+                        }
+                    })),
+                    None => Err(iii_sdk::IIIError::Handler(format!(
+                        "model not found: {}",
+                        model_id
+                    ))),
+                }
             }
-        }
-    });
+        },
+    );
 }

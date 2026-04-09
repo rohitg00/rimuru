@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 pub mod claude_code;
 pub mod codex;
 pub mod copilot;
@@ -6,7 +7,6 @@ pub mod detection;
 pub mod goose;
 pub mod opencode;
 
-use async_trait::async_trait;
 use serde_json::Value;
 
 use crate::error::RimuruError;

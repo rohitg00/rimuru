@@ -1,6 +1,6 @@
 use anyhow::Result;
-use iii_sdk::III;
-use serde_json::{json, Value};
+use iii_sdk::{III, TriggerRequest};
+use serde_json::{Value, json};
 
 use crate::output::{self, OutputFormat};
 
@@ -10,7 +10,14 @@ pub async fn get(iii: &III, key: Option<&str>, format: &OutputFormat) -> Result<
     } else {
         json!({})
     };
-    let result = iii.trigger("rimuru.config.get", input).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.config.get".to_string(),
+            payload: input,
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
 
     if let Some(k) = key {
         if let Some(val) = result.get("value") {
@@ -45,13 +52,15 @@ pub async fn set(iii: &III, key: &str, value: &str, format: &OutputFormat) -> Re
     };
 
     let result = iii
-        .trigger(
-            "rimuru.config.set",
-            json!({
+        .trigger(TriggerRequest {
+            function_id: "rimuru.config.set".to_string(),
+            payload: json!({
                 "key": key,
                 "value": typed_value,
             }),
-        )
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
 
     println!("Set {key} = {value}");

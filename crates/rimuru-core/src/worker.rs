@@ -1,4 +1,5 @@
-use iii_sdk::{WorkerMetadata, III};
+use iii_sdk::{III, InitOptions, TriggerRequest, register_worker};
+use serde_json::json;
 use tracing::info;
 
 use crate::error::RimuruError;
@@ -7,40 +8,20 @@ use crate::{functions, triggers};
 
 pub struct RimuruWorker {
     iii: III,
-    kv: StateKV,
-    engine_url: String,
 }
 
 impl RimuruWorker {
     pub fn new(engine_url: &str) -> Self {
-        let iii = III::with_metadata(
-            engine_url,
-            WorkerMetadata {
-                runtime: "rust".to_string(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                name: "rimuru-core".to_string(),
-                os: std::env::consts::OS.to_string(),
-                telemetry: None,
-            },
-        );
-        let kv = StateKV::new(iii.clone());
+        let iii = register_worker(engine_url, InitOptions::default());
 
-        Self {
-            iii,
-            kv,
-            engine_url: engine_url.to_string(),
-        }
+        Self { iii }
     }
 
     pub async fn start(&self) -> Result<(), RimuruError> {
-        info!("Connecting to iii engine at {}", self.engine_url);
-        self.iii
-            .connect()
-            .await
-            .map_err(|e: iii_sdk::IIIError| RimuruError::Bridge(e.to_string()))?;
-        info!("Connected to iii engine");
+        info!("Initializing rimuru worker (connection started by register_worker)");
 
-        functions::register_all(&self.iii, &self.kv);
+        let kv = StateKV::new(self.iii.clone());
+        functions::register_all(&self.iii, &kv);
         info!("Registered all functions");
 
         triggers::register_all(&self.iii);
@@ -50,10 +31,12 @@ impl RimuruWorker {
 
         match self
             .iii
-            .trigger(
-                "rimuru.agents.detect",
-                serde_json::json!({"auto_register": true}),
-            )
+            .trigger(TriggerRequest {
+                function_id: "rimuru.agents.detect".to_string(),
+                payload: json!({"auto_register": true}),
+                action: None,
+                timeout_ms: None,
+            })
             .await
         {
             Ok(result) => {
@@ -67,7 +50,12 @@ impl RimuruWorker {
 
         match self
             .iii
-            .trigger("rimuru.agents.sync", serde_json::json!({}))
+            .trigger(TriggerRequest {
+                function_id: "rimuru.agents.sync".to_string(),
+                payload: json!({}),
+                action: None,
+                timeout_ms: None,
+            })
             .await
         {
             Ok(result) => {
@@ -91,7 +79,12 @@ impl RimuruWorker {
 
         match self
             .iii
-            .trigger("rimuru.metrics.collect", serde_json::json!({}))
+            .trigger(TriggerRequest {
+                function_id: "rimuru.metrics.collect".to_string(),
+                payload: json!({}),
+                action: None,
+                timeout_ms: None,
+            })
             .await
         {
             Ok(_) => info!("Initial metrics collected"),
@@ -100,7 +93,12 @@ impl RimuruWorker {
 
         match self
             .iii
-            .trigger("rimuru.hardware.detect", serde_json::json!({}))
+            .trigger(TriggerRequest {
+                function_id: "rimuru.hardware.detect".to_string(),
+                payload: json!({}),
+                action: None,
+                timeout_ms: None,
+            })
             .await
         {
             Ok(result) => {
@@ -120,10 +118,6 @@ impl RimuruWorker {
 
     pub fn iii(&self) -> &III {
         &self.iii
-    }
-
-    pub fn kv(&self) -> &StateKV {
-        &self.kv
     }
 
     pub async fn shutdown(&self) {

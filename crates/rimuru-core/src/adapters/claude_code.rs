@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use std::path::PathBuf;
 
-use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::Value;
 use tracing::{debug, warn};
@@ -80,14 +80,12 @@ impl ClaudeCodeAdapter {
             let entry = entry?;
             let path = entry.path();
             if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "jsonl" {
-                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                            if uuid::Uuid::parse_str(stem).is_ok() {
-                                results.push(path);
-                            }
-                        }
-                    }
+                if let Some(ext) = path.extension()
+                    && ext == "jsonl"
+                    && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+                    && uuid::Uuid::parse_str(stem).is_ok()
+                {
+                    results.push(path);
                 }
             } else if path.is_dir() {
                 let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -137,10 +135,10 @@ impl ClaudeCodeAdapter {
                 last_timestamp = Some(ts.to_string());
             }
 
-            if session_id_found.is_none() {
-                if let Some(sid) = entry.get("sessionId").and_then(|v| v.as_str()) {
-                    session_id_found = Some(sid.to_string());
-                }
+            if session_id_found.is_none()
+                && let Some(sid) = entry.get("sessionId").and_then(|v| v.as_str())
+            {
+                session_id_found = Some(sid.to_string());
             }
 
             if let Some(msg) = entry.get("message") {
@@ -184,16 +182,16 @@ impl ClaudeCodeAdapter {
             if let Ok(parsed) = uuid::Uuid::parse_str(sid) {
                 session.id = parsed;
             }
-        } else if let Some(stem) = jsonl_path.file_stem().and_then(|s| s.to_str()) {
-            if let Ok(parsed) = uuid::Uuid::parse_str(stem) {
-                session.id = parsed;
-            }
+        } else if let Some(stem) = jsonl_path.file_stem().and_then(|s| s.to_str())
+            && let Ok(parsed) = uuid::Uuid::parse_str(stem)
+        {
+            session.id = parsed;
         }
 
-        if let Some(ref ts) = first_timestamp {
-            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) {
-                session.started_at = dt.with_timezone(&Utc);
-            }
+        if let Some(ref ts) = first_timestamp
+            && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts)
+        {
+            session.started_at = dt.with_timezone(&Utc);
         }
 
         session.messages = msg_count;
@@ -212,20 +210,20 @@ impl ClaudeCodeAdapter {
             );
         }
 
-        if let Ok(metadata) = std::fs::metadata(jsonl_path) {
-            if let Ok(modified) = metadata.modified() {
-                let elapsed = modified.elapsed().unwrap_or_default();
-                if elapsed.as_secs() > 3600 {
+        if let Ok(metadata) = std::fs::metadata(jsonl_path)
+            && let Ok(modified) = metadata.modified()
+        {
+            let elapsed = modified.elapsed().unwrap_or_default();
+            if elapsed.as_secs() > 3600 {
+                session.status = SessionStatus::Completed;
+                session.ended_at = Some(chrono::DateTime::<Utc>::from(modified));
+            } else if let Some(ref ts) = last_timestamp
+                && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts)
+            {
+                let age = Utc::now() - dt.with_timezone(&Utc);
+                if age.num_seconds() > 3600 {
                     session.status = SessionStatus::Completed;
-                    session.ended_at = Some(chrono::DateTime::<Utc>::from(modified));
-                } else if let Some(ref ts) = last_timestamp {
-                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) {
-                        let age = Utc::now() - dt.with_timezone(&Utc);
-                        if age.num_seconds() > 3600 {
-                            session.status = SessionStatus::Completed;
-                            session.ended_at = Some(dt.with_timezone(&Utc));
-                        }
-                    }
+                    session.ended_at = Some(dt.with_timezone(&Utc));
                 }
             }
         }

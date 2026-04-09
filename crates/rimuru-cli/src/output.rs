@@ -38,11 +38,7 @@ fn bool_field(v: &Value, key: &str) -> bool {
 }
 
 fn yes_no(val: bool) -> &'static str {
-    if val {
-        "yes"
-    } else {
-        "no"
-    }
+    if val { "yes" } else { "no" }
 }
 
 fn status_cell(status: &str, colors: &[(&str, Color)]) -> Cell {
@@ -250,37 +246,36 @@ pub fn format_costs_summary(costs: &Value, format: &OutputFormat) -> String {
             ]);
             out.push_str(&summary.to_string());
 
-            if let Some(by_agent) = costs.get("by_agent").and_then(|v| v.as_array()) {
-                if !by_agent.is_empty() {
-                    out.push_str("\n\nBy Agent:\n");
-                    let mut agent_table = new_table(&["Agent", "Type", "Cost", "Records"]);
-                    for a in by_agent {
-                        agent_table.add_row(vec![
-                            Cell::new(str_field(a, "agent_name")),
-                            Cell::new(str_field(a, "agent_type")),
-                            Cell::new(format!("${:.4}", f64_field(a, "total_cost"))),
-                            Cell::new(u64_field(a, "record_count"))
-                                .set_alignment(CellAlignment::Right),
-                        ]);
-                    }
-                    out.push_str(&agent_table.to_string());
+            if let Some(by_agent) = costs.get("by_agent").and_then(|v| v.as_array())
+                && !by_agent.is_empty()
+            {
+                out.push_str("\n\nBy Agent:\n");
+                let mut agent_table = new_table(&["Agent", "Type", "Cost", "Records"]);
+                for a in by_agent {
+                    agent_table.add_row(vec![
+                        Cell::new(str_field(a, "agent_name")),
+                        Cell::new(str_field(a, "agent_type")),
+                        Cell::new(format!("${:.4}", f64_field(a, "total_cost"))),
+                        Cell::new(u64_field(a, "record_count")).set_alignment(CellAlignment::Right),
+                    ]);
                 }
+                out.push_str(&agent_table.to_string());
             }
 
-            if let Some(by_model) = costs.get("by_model").and_then(|v| v.as_array()) {
-                if !by_model.is_empty() {
-                    out.push_str("\n\nBy Model:\n");
-                    let mut model_table = new_table(&["Model", "Provider", "Cost", "Tokens"]);
-                    for m in by_model {
-                        model_table.add_row(vec![
-                            Cell::new(str_field(m, "model")),
-                            Cell::new(str_field(m, "provider")),
-                            Cell::new(format!("${:.4}", f64_field(m, "total_cost"))),
-                            Cell::new(format_tokens(u64_field(m, "total_tokens"))),
-                        ]);
-                    }
-                    out.push_str(&model_table.to_string());
+            if let Some(by_model) = costs.get("by_model").and_then(|v| v.as_array())
+                && !by_model.is_empty()
+            {
+                out.push_str("\n\nBy Model:\n");
+                let mut model_table = new_table(&["Model", "Provider", "Cost", "Tokens"]);
+                for m in by_model {
+                    model_table.add_row(vec![
+                        Cell::new(str_field(m, "model")),
+                        Cell::new(str_field(m, "provider")),
+                        Cell::new(format!("${:.4}", f64_field(m, "total_cost"))),
+                        Cell::new(format_tokens(u64_field(m, "total_tokens"))),
+                    ]);
                 }
+                out.push_str(&model_table.to_string());
             }
 
             out

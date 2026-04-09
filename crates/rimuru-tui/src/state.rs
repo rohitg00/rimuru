@@ -182,63 +182,63 @@ impl App {
                 if let Some(v) = client.get("/system").await {
                     self.hardware = v;
                 }
-                if let Some(v) = client.get("/activity").await {
-                    if let Some(arr) = v.as_array() {
-                        self.activity = arr.clone();
-                    }
+                if let Some(v) = client.get("/activity").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.activity = arr.clone();
                 }
-                if let Some(v) = client.get("/models/advisor").await {
-                    if let Some(arr) = v.as_array() {
-                        self.total_savings = arr
-                            .iter()
-                            .filter(|a| {
-                                a.get("can_run_locally")
-                                    .and_then(|v| v.as_bool())
-                                    .unwrap_or(false)
-                            })
-                            .map(|a| {
-                                a.get("potential_savings")
-                                    .and_then(|v| v.as_f64())
-                                    .unwrap_or(0.0)
-                            })
-                            .sum();
-                    }
+                if let Some(v) = client.get("/models/advisor").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.total_savings = arr
+                        .iter()
+                        .filter(|a| {
+                            a.get("can_run_locally")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false)
+                        })
+                        .map(|a| {
+                            a.get("potential_savings")
+                                .and_then(|v| v.as_f64())
+                                .unwrap_or(0.0)
+                        })
+                        .sum();
                 }
             }
             Tab::Agents => {
-                if let Some(v) = client.get("/agents").await {
-                    if let Some(arr) = v.as_array() {
-                        self.agents = arr.clone();
-                    }
+                if let Some(v) = client.get("/agents").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.agents = arr.clone();
                 }
             }
             Tab::Sessions => {
-                if let Some(v) = client.get("/sessions").await {
-                    if let Some(arr) = v.as_array() {
-                        self.sessions = arr.clone();
-                    }
+                if let Some(v) = client.get("/sessions").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.sessions = arr.clone();
                 }
             }
             Tab::Costs => {
                 if let Some(v) = client.get("/costs/summary").await {
                     self.cost_summary = v.get("summary").cloned().unwrap_or(v);
                 }
-                if let Some(v) = client.get("/costs/daily").await {
-                    if let Some(arr) = v.as_array() {
-                        self.daily_costs = arr.clone();
-                    }
+                if let Some(v) = client.get("/costs/daily").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.daily_costs = arr.clone();
                 }
             }
             Tab::Models => {
-                if let Some(v) = client.get("/models").await {
-                    if let Some(arr) = v.as_array() {
-                        self.models = arr.clone();
-                    }
+                if let Some(v) = client.get("/models").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.models = arr.clone();
                 }
-                if let Some(v) = client.get("/models/advisor").await {
-                    if let Some(arr) = v.as_array() {
-                        self.advisories = arr.clone();
-                    }
+                if let Some(v) = client.get("/models/advisor").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.advisories = arr.clone();
                 }
             }
             Tab::Advisor => {
@@ -264,24 +264,24 @@ impl App {
                 }
             }
             Tab::Hooks => {
-                if let Some(v) = client.get("/hooks").await {
-                    if let Some(arr) = v.as_array() {
-                        self.hooks = arr.clone();
-                    }
+                if let Some(v) = client.get("/hooks").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.hooks = arr.clone();
                 }
             }
             Tab::Plugins => {
-                if let Some(v) = client.get("/plugins").await {
-                    if let Some(arr) = v.as_array() {
-                        self.plugins = arr.clone();
-                    }
+                if let Some(v) = client.get("/plugins").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.plugins = arr.clone();
                 }
             }
             Tab::Mcp => {
-                if let Some(v) = client.get("/mcp").await {
-                    if let Some(arr) = v.as_array() {
-                        self.mcp_servers = arr.clone();
-                    }
+                if let Some(v) = client.get("/mcp").await
+                    && let Some(arr) = v.as_array()
+                {
+                    self.mcp_servers = arr.clone();
                 }
             }
             Tab::Metrics => {

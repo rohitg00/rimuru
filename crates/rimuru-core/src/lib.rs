@@ -3,7 +3,6 @@ pub mod discovery;
 pub mod error;
 pub mod functions;
 pub mod hooks;
-pub mod http;
 pub mod models;
 pub mod state;
 pub mod triggers;

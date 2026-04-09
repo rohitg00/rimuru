@@ -1,18 +1,32 @@
 use anyhow::Result;
-use iii_sdk::III;
-use serde_json::{json, Value};
+use iii_sdk::{III, TriggerRequest};
+use serde_json::{Value, json};
 
 use crate::output::{self, OutputFormat};
 
 pub async fn summary(iii: &III, format: &OutputFormat) -> Result<()> {
-    let result = iii.trigger("rimuru.costs.summary", json!({})).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.costs.summary".to_string(),
+            payload: json!({}),
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
     let summary = result.get("summary").unwrap_or(&result);
     println!("{}", output::format_costs_summary(summary, format));
     Ok(())
 }
 
 pub async fn daily(iii: &III, format: &OutputFormat) -> Result<()> {
-    let result = iii.trigger("rimuru.costs.daily", json!({})).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.costs.daily".to_string(),
+            payload: json!({}),
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
     let entries = result
         .get("daily")
         .and_then(|v| v.as_array())
@@ -28,7 +42,14 @@ pub async fn agent(iii: &III, agent_id: Option<&str>, format: &OutputFormat) -> 
     } else {
         json!({})
     };
-    let result = iii.trigger("rimuru.costs.by_agent", input).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.costs.by_agent".to_string(),
+            payload: input,
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
     let agents = match result {
         Value::Array(arr) => arr,
         other => vec![other],
@@ -38,7 +59,14 @@ pub async fn agent(iii: &III, agent_id: Option<&str>, format: &OutputFormat) -> 
 }
 
 pub async fn export(iii: &III, path: &str) -> Result<()> {
-    let result = iii.trigger("rimuru.costs.summary", json!({})).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.costs.summary".to_string(),
+            payload: json!({}),
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
     let content = serde_json::to_string_pretty(&result)?;
     std::fs::write(path, &content)?;
     println!("Exported costs to {path}");

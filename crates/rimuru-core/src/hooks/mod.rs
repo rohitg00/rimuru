@@ -1,8 +1,9 @@
 pub mod types;
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
-use dashmap::DashMap;
+use iii_sdk::TriggerRequest;
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -11,9 +12,11 @@ use types::HookEvent;
 
 type Result<T> = std::result::Result<T, RimuruError>;
 
+const HOOK_TIMEOUT_MS: u64 = 15_000;
+
 #[derive(Clone)]
 pub struct HookRegistry {
-    handlers: Arc<DashMap<String, Vec<HookHandler>>>,
+    handlers: Arc<RwLock<HashMap<String, Vec<HookHandler>>>>,
 }
 
 #[derive(Clone)]
@@ -32,7 +35,7 @@ impl Default for HookRegistry {
 impl HookRegistry {
     pub fn new() -> Self {
         Self {
-            handlers: Arc::new(DashMap::new()),
+            handlers: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -43,7 +46,8 @@ impl HookRegistry {
             priority,
         };
 
-        let mut entry = self.handlers.entry(event_type.to_string()).or_default();
+        let mut map = self.handlers.write().unwrap_or_else(|e| e.into_inner());
+        let entry = map.entry(event_type.to_string()).or_default();
         entry.push(handler);
         entry.sort_by(|a, b| b.priority.cmp(&a.priority));
 
@@ -54,14 +58,15 @@ impl HookRegistry {
     }
 
     pub fn unregister(&self, event_type: &str, handler_id: &str) {
-        if let Some(mut handlers) = self.handlers.get_mut(event_type) {
+        let mut map = self.handlers.write().unwrap_or_else(|e| e.into_inner());
+        if let Some(handlers) = map.get_mut(event_type) {
             handlers.retain(|h| h.id != handler_id);
         }
     }
 
     pub fn get_handlers(&self, event_type: &str) -> Vec<String> {
-        self.handlers
-            .get(event_type)
+        let map = self.handlers.read().unwrap_or_else(|e| e.into_inner());
+        map.get(event_type)
             .map(|h| {
                 h.iter()
                     .map(|handler| handler.function_id.clone())
@@ -71,16 +76,11 @@ impl HookRegistry {
     }
 
     pub fn list_all(&self) -> Vec<(String, Vec<String>)> {
-        self.handlers
-            .iter()
-            .map(|entry| {
-                let event = entry.key().clone();
-                let fns = entry
-                    .value()
-                    .iter()
-                    .map(|h| h.function_id.clone())
-                    .collect();
-                (event, fns)
+        let map = self.handlers.read().unwrap_or_else(|e| e.into_inner());
+        map.iter()
+            .map(|(event, handlers)| {
+                let fns = handlers.iter().map(|h| h.function_id.clone()).collect();
+                (event.clone(), fns)
             })
             .collect()
     }
@@ -96,7 +96,15 @@ impl HookRegistry {
 
         let mut results = Vec::new();
         for function_id in handler_fns {
-            match iii.trigger(&function_id, payload.clone()).await {
+            match iii
+                .trigger(TriggerRequest {
+                    function_id: function_id.clone(),
+                    payload: payload.clone(),
+                    action: None,
+                    timeout_ms: Some(HOOK_TIMEOUT_MS),
+                })
+                .await
+            {
                 Ok(result) => results.push(result),
                 Err(e) => {
                     warn!(

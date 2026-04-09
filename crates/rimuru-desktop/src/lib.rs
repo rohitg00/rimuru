@@ -4,7 +4,7 @@ mod state;
 mod tray;
 mod window_state;
 
-use rimuru_core::{RimuruWorker, DEFAULT_ENGINE_URL};
+use rimuru_core::{DEFAULT_ENGINE_URL, RimuruWorker, StateKV};
 use state::AppState;
 use tauri::{Emitter, Manager};
 use tracing::info;
@@ -31,14 +31,14 @@ pub fn run() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
-                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        if let Some(window) = app.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed
+                        && let Some(window) = app.get_webview_window("main")
+                    {
+                        if window.is_visible().unwrap_or(false) {
+                            let _ = window.hide();
+                        } else {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
                     }
                 })
@@ -52,7 +52,7 @@ pub fn run() {
 
             let worker = RimuruWorker::new(&engine_url);
             let iii = worker.iii().clone();
-            let kv = worker.kv().clone();
+            let kv = StateKV::new(iii.clone());
 
             let app_state = AppState::new(iii, kv.clone(), api_port);
             app.manage(app_state);
@@ -64,13 +64,7 @@ pub fn run() {
                     tracing::error!("Failed to start worker: {}", e);
                     return;
                 }
-                info!("Worker started, launching HTTP server on port {}", api_port);
-
-                tokio::spawn(async move {
-                    if let Err(e) = rimuru_core::http::serve(kv, api_port).await {
-                        tracing::error!("HTTP server error: {}", e);
-                    }
-                });
+                info!("Worker started (API served by iii-http on engine port)");
 
                 let _ = handle.emit("worker-ready", serde_json::json!({"port": api_port}));
             });

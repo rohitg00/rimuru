@@ -1,11 +1,18 @@
 use anyhow::Result;
-use iii_sdk::III;
+use iii_sdk::{III, TriggerRequest};
 use serde_json::json;
 
 use crate::output::{self, OutputFormat};
 
 pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
-    let result = iii.trigger("rimuru.hooks.list", json!({})).await?;
+    let result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.hooks.list".to_string(),
+            payload: json!({}),
+            action: None,
+            timeout_ms: None,
+        })
+        .await?;
     let hooks = if let Some(arr) = result.get("hooks").and_then(|v| v.as_array()) {
         arr.clone()
     } else {
@@ -23,14 +30,16 @@ pub async fn register(
     format: &OutputFormat,
 ) -> Result<()> {
     let result = iii
-        .trigger(
-            "rimuru.hooks.register",
-            json!({
+        .trigger(TriggerRequest {
+            function_id: "rimuru.hooks.register".to_string(),
+            payload: json!({
                 "event_type": event_type,
                 "function_id": function_id,
                 "priority": priority,
             }),
-        )
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
 
     let success = result
@@ -59,13 +68,15 @@ pub async fn dispatch(
     };
 
     let result = iii
-        .trigger(
-            "rimuru.hooks.dispatch",
-            json!({
+        .trigger(TriggerRequest {
+            function_id: "rimuru.hooks.dispatch".to_string(),
+            payload: json!({
                 "event_type": event_type,
                 "payload": event_payload,
             }),
-        )
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
 
     let handler_count = result

@@ -1,5 +1,5 @@
-use iii_sdk::III;
-use serde_json::{json, Value};
+use iii_sdk::{III, RegisterFunctionMessage};
+use serde_json::{Value, json};
 
 use super::sysutil::{kv_err, parse_meminfo_kb, parse_vm_stat_value, run_cmd};
 use crate::models::hardware::{assess_fit, local_equivalents};
@@ -20,198 +20,212 @@ pub fn register(iii: &III, kv: &StateKV) {
 
 fn register_detect(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.hardware.detect", move |_input: Value| {
-        let kv = kv.clone();
-        async move {
-            let hw = detect_hardware().await;
-            kv.set("hardware", "system_info", &hw)
-                .await
-                .map_err(kv_err)?;
-            Ok(json!({"hardware": hw}))
-        }
-    });
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.hardware.detect".to_string()),
+        move |_input: Value| {
+            let kv = kv.clone();
+            async move {
+                let hw = detect_hardware().await;
+                kv.set("hardware", "system_info", &hw)
+                    .await
+                    .map_err(kv_err)?;
+                Ok(json!({"hardware": hw}))
+            }
+        },
+    );
 }
 
 fn register_get(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.hardware.get", move |_input: Value| {
-        let kv = kv.clone();
-        async move {
-            let hw: Option<HardwareInfo> =
-                kv.get("hardware", "system_info").await.map_err(kv_err)?;
-            match hw {
-                Some(h) => Ok(json!({"hardware": h})),
-                None => {
-                    let detected = detect_hardware().await;
-                    kv.set("hardware", "system_info", &detected)
-                        .await
-                        .map_err(kv_err)?;
-                    Ok(json!({"hardware": detected}))
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.hardware.get".to_string()),
+        move |_input: Value| {
+            let kv = kv.clone();
+            async move {
+                let hw: Option<HardwareInfo> =
+                    kv.get("hardware", "system_info").await.map_err(kv_err)?;
+                match hw {
+                    Some(h) => Ok(json!({"hardware": h})),
+                    None => {
+                        let detected = detect_hardware().await;
+                        kv.set("hardware", "system_info", &detected)
+                            .await
+                            .map_err(kv_err)?;
+                        Ok(json!({"hardware": detected}))
+                    }
                 }
             }
-        }
-    });
+        },
+    );
 }
 
 fn register_assess(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.advisor.assess", move |_input: Value| {
-        let kv = kv.clone();
-        async move {
-            let hw: Option<HardwareInfo> =
-                kv.get("hardware", "system_info").await.map_err(kv_err)?;
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.advisor.assess".to_string()),
+        move |_input: Value| {
+            let kv = kv.clone();
+            async move {
+                let hw: Option<HardwareInfo> =
+                    kv.get("hardware", "system_info").await.map_err(kv_err)?;
 
-            let hw = match hw {
-                Some(h) => h,
-                None => {
-                    let detected = detect_hardware().await;
-                    kv.set("hardware", "system_info", &detected)
-                        .await
-                        .map_err(kv_err)?;
-                    detected
-                }
-            };
+                let hw = match hw {
+                    Some(h) => h,
+                    None => {
+                        let detected = detect_hardware().await;
+                        kv.set("hardware", "system_info", &detected)
+                            .await
+                            .map_err(kv_err)?;
+                        detected
+                    }
+                };
 
-            let models: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
+                let models: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
-            let cost_summary: Option<Value> =
-                kv.get("cost_agent", "summary").await.map_err(kv_err)?;
+                let cost_summary: Option<Value> =
+                    kv.get("cost_agent", "summary").await.map_err(kv_err)?;
 
-            let by_model = cost_summary
-                .as_ref()
-                .and_then(|v| v.get("by_model"))
-                .and_then(|v| v.as_array());
+                let by_model = cost_summary
+                    .as_ref()
+                    .and_then(|v| v.get("by_model"))
+                    .and_then(|v| v.as_array());
 
-            let equivalents = local_equivalents();
-            let mut advisories: Vec<LocalModelAdvisory> = Vec::new();
+                let equivalents = local_equivalents();
+                let mut advisories: Vec<LocalModelAdvisory> = Vec::new();
 
-            for eq in &equivalents {
-                let model = models.iter().find(|m| m.id == eq.api_model_id);
-                let model_name = model
-                    .map(|m| m.name.clone())
-                    .unwrap_or_else(|| eq.api_model_id.to_string());
+                for eq in &equivalents {
+                    let model = models.iter().find(|m| m.id == eq.api_model_id);
+                    let model_name = model
+                        .map(|m| m.name.clone())
+                        .unwrap_or_else(|| eq.api_model_id.to_string());
 
-                let api_cost_spent = by_model
-                    .and_then(|arr| {
-                        arr.iter().find(|m| {
-                            m.get("model_id")
-                                .and_then(|id| id.as_str())
-                                .map(|id| id == eq.api_model_id)
-                                .unwrap_or(false)
+                    let api_cost_spent = by_model
+                        .and_then(|arr| {
+                            arr.iter().find(|m| {
+                                m.get("model_id")
+                                    .and_then(|id| id.as_str())
+                                    .map(|id| id == eq.api_model_id)
+                                    .unwrap_or(false)
+                            })
                         })
-                    })
-                    .and_then(|m| m.get("total_cost").and_then(|c| c.as_f64()))
-                    .unwrap_or(0.0);
+                        .and_then(|m| m.get("total_cost").and_then(|c| c.as_f64()))
+                        .unwrap_or(0.0);
 
-                let (fit_level, best_quant, est_vram, est_tok_s) = assess_fit(&hw, eq.params_b);
+                    let (fit_level, best_quant, est_vram, est_tok_s) = assess_fit(&hw, eq.params_b);
 
-                let can_run = fit_level != FitLevel::TooTight;
-                let potential_savings = if can_run { api_cost_spent } else { 0.0 };
+                    let can_run = fit_level != FitLevel::TooTight;
+                    let potential_savings = if can_run { api_cost_spent } else { 0.0 };
 
-                advisories.push(LocalModelAdvisory {
-                    model_id: eq.api_model_id.to_string(),
-                    model_name,
-                    can_run_locally: can_run,
-                    fit_level,
-                    best_quantization: best_quant,
-                    estimated_vram_mb: est_vram,
-                    estimated_tok_per_sec: est_tok_s,
-                    local_equivalent: Some(eq.local_name.to_string()),
-                    api_cost_spent,
-                    potential_savings,
-                });
+                    advisories.push(LocalModelAdvisory {
+                        model_id: eq.api_model_id.to_string(),
+                        model_name,
+                        can_run_locally: can_run,
+                        fit_level,
+                        best_quantization: best_quant,
+                        estimated_vram_mb: est_vram,
+                        estimated_tok_per_sec: est_tok_s,
+                        local_equivalent: Some(eq.local_name.to_string()),
+                        api_cost_spent,
+                        potential_savings,
+                    });
+                }
+
+                kv.set("advisor", "assessments", &advisories)
+                    .await
+                    .map_err(kv_err)?;
+
+                Ok(json!({"advisories": advisories}))
             }
-
-            kv.set("advisor", "assessments", &advisories)
-                .await
-                .map_err(kv_err)?;
-
-            Ok(json!({"advisories": advisories}))
-        }
-    });
+        },
+    );
 }
 
 fn register_catalog(iii: &III, kv: &StateKV) {
     let kv = kv.clone();
-    iii.register_function("rimuru.advisor.catalog", move |input: Value| {
-        let kv = kv.clone();
-        async move {
-            let hw: Option<HardwareInfo> =
-                kv.get("hardware", "system_info").await.map_err(kv_err)?;
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id("rimuru.advisor.catalog".to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            async move {
+                let hw: Option<HardwareInfo> =
+                    kv.get("hardware", "system_info").await.map_err(kv_err)?;
 
-            let hw = match hw {
-                Some(h) => h,
-                None => {
-                    let detected = detect_hardware().await;
-                    kv.set("hardware", "system_info", &detected)
-                        .await
-                        .map_err(kv_err)?;
-                    detected
+                let hw = match hw {
+                    Some(h) => h,
+                    None => {
+                        let detected = detect_hardware().await;
+                        kv.set("hardware", "system_info", &detected)
+                            .await
+                            .map_err(kv_err)?;
+                        detected
+                    }
+                };
+
+                let filter = input
+                    .get("filter")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("runnable");
+
+                let catalog: Vec<CatalogModel> =
+                    serde_json::from_str(CATALOG_JSON).map_err(|e| {
+                        iii_sdk::IIIError::Handler(format!("Failed to parse catalog: {}", e))
+                    })?;
+
+                let mut entries: Vec<CatalogEntry> = Vec::new();
+
+                for model in &catalog {
+                    let (fit_level, best_quant, est_vram, est_tok_s) =
+                        assess_fit(&hw, model.params_b);
+                    let can_run = fit_level != FitLevel::TooTight;
+
+                    if filter == "runnable" && !can_run {
+                        continue;
+                    }
+
+                    entries.push(CatalogEntry {
+                        name: model.name.clone(),
+                        provider: model.provider.clone(),
+                        params_b: model.params_b,
+                        context_length: model.context_length,
+                        use_case: model.use_case.clone(),
+                        architecture: model.architecture.clone(),
+                        capabilities: model.capabilities.clone(),
+                        hf_downloads: model.hf_downloads,
+                        fit_level,
+                        can_run,
+                        best_quantization: best_quant,
+                        estimated_vram_mb: est_vram,
+                        estimated_tok_per_sec: est_tok_s,
+                    });
                 }
-            };
 
-            let filter = input
-                .get("filter")
-                .and_then(|v| v.as_str())
-                .unwrap_or("runnable");
+                let total = entries.len();
+                let perfect = entries
+                    .iter()
+                    .filter(|e| e.fit_level == FitLevel::Perfect)
+                    .count();
+                let good = entries
+                    .iter()
+                    .filter(|e| e.fit_level == FitLevel::Good)
+                    .count();
+                let marginal = entries
+                    .iter()
+                    .filter(|e| e.fit_level == FitLevel::Marginal)
+                    .count();
 
-            let catalog: Vec<CatalogModel> = serde_json::from_str(CATALOG_JSON).map_err(|e| {
-                iii_sdk::IIIError::Handler(format!("Failed to parse catalog: {}", e))
-            })?;
-
-            let mut entries: Vec<CatalogEntry> = Vec::new();
-
-            for model in &catalog {
-                let (fit_level, best_quant, est_vram, est_tok_s) = assess_fit(&hw, model.params_b);
-                let can_run = fit_level != FitLevel::TooTight;
-
-                if filter == "runnable" && !can_run {
-                    continue;
-                }
-
-                entries.push(CatalogEntry {
-                    name: model.name.clone(),
-                    provider: model.provider.clone(),
-                    params_b: model.params_b,
-                    context_length: model.context_length,
-                    use_case: model.use_case.clone(),
-                    architecture: model.architecture.clone(),
-                    capabilities: model.capabilities.clone(),
-                    hf_downloads: model.hf_downloads,
-                    fit_level,
-                    can_run,
-                    best_quantization: best_quant,
-                    estimated_vram_mb: est_vram,
-                    estimated_tok_per_sec: est_tok_s,
-                });
+                Ok(json!({
+                    "entries": entries,
+                    "total": total,
+                    "summary": {
+                        "perfect": perfect,
+                        "good": good,
+                        "marginal": marginal,
+                        "catalog_size": catalog.len()
+                    }
+                }))
             }
-
-            let total = entries.len();
-            let perfect = entries
-                .iter()
-                .filter(|e| e.fit_level == FitLevel::Perfect)
-                .count();
-            let good = entries
-                .iter()
-                .filter(|e| e.fit_level == FitLevel::Good)
-                .count();
-            let marginal = entries
-                .iter()
-                .filter(|e| e.fit_level == FitLevel::Marginal)
-                .count();
-
-            Ok(json!({
-                "entries": entries,
-                "total": total,
-                "summary": {
-                    "perfect": perfect,
-                    "good": good,
-                    "marginal": marginal,
-                    "catalog_size": catalog.len()
-                }
-            }))
-        }
-    });
+        },
+    );
 }
 
 async fn detect_hardware() -> HardwareInfo {
