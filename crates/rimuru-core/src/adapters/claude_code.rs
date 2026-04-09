@@ -226,6 +226,7 @@ impl ClaudeCodeAdapter {
 
                 let mut tool_calls = Vec::new();
                 let mut content_type = "text".to_string();
+                let mut content_estimated: u64 = 0;
 
                 if let Some(content_arr) = msg.get("content").and_then(|c| c.as_array()) {
                     for block in content_arr {
@@ -247,6 +248,7 @@ impl ClaudeCodeAdapter {
                                     .map(|v| v.to_string().len() as u64 / 4)
                                     .unwrap_or(0);
 
+                                content_estimated += input_est;
                                 Self::classify_tool_tokens(
                                     &tool_name,
                                     input_est,
@@ -267,6 +269,8 @@ impl ClaudeCodeAdapter {
                                     .get("content")
                                     .map(|v| v.to_string().len() as u64 / 4)
                                     .unwrap_or(0);
+
+                                content_estimated += output_est;
 
                                 let tool_use_id = block
                                     .get("tool_use_id")
@@ -306,6 +310,7 @@ impl ClaudeCodeAdapter {
                                     .map(|s| s.len() as u64 / 4)
                                     .unwrap_or(0);
 
+                                content_estimated += text_est;
                                 match role {
                                     "user" | "human" => breakdown.user_tokens += text_est,
                                     "assistant" => breakdown.assistant_tokens += text_est,
@@ -316,30 +321,12 @@ impl ClaudeCodeAdapter {
                             _ => {}
                         }
                     }
-                } else {
-                    match role {
-                        "user" | "human" => breakdown.user_tokens += turn_input,
-                        "assistant" => breakdown.assistant_tokens += turn_output,
-                        "system" => breakdown.system_prompt_tokens += turn_input,
-                        _ => {}
-                    }
                 }
 
                 if turn_input > 0 || turn_output > 0 {
-                    let estimated_from_content: u64 = tool_calls
-                        .iter()
-                        .map(|tc| tc.input_tokens_estimate + tc.output_tokens_estimate)
-                        .sum::<u64>();
-
                     let actual_total = turn_input + turn_output;
-                    if actual_total > estimated_from_content {
-                        let unattributed = actual_total - estimated_from_content;
-                        match role {
-                            "assistant" => breakdown.conversation_tokens += unattributed,
-                            "user" | "human" => breakdown.user_tokens += unattributed,
-                            "system" => breakdown.system_prompt_tokens += unattributed,
-                            _ => breakdown.conversation_tokens += unattributed,
-                        }
+                    if actual_total > content_estimated {
+                        breakdown.conversation_tokens += actual_total - content_estimated;
                     }
 
                     breakdown.turns.push(TurnRecord {

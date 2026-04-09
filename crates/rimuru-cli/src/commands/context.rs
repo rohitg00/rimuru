@@ -15,7 +15,7 @@ pub async fn breakdown(iii: &III, session_id: &str, format: &OutputFormat) -> Re
         })
         .await?;
 
-    if let OutputFormat::Json = format {
+    if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
         return Ok(());
     }
@@ -91,7 +91,7 @@ pub async fn breakdowns(iii: &III, format: &OutputFormat) -> Result<()> {
         })
         .await?;
 
-    if let OutputFormat::Json = format {
+    if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
         return Ok(());
     }
@@ -112,7 +112,7 @@ pub async fn breakdowns(iii: &III, format: &OutputFormat) -> Result<()> {
                 .map(|w| format!("{w:.1}%"))
                 .unwrap_or_else(|| "-".to_string());
             table.add_row(vec![
-                sid[..8.min(sid.len())].to_string(),
+                sid[..sid.len().min(8)].to_string(),
                 format!("{tokens}"),
                 waste_str,
             ]);
@@ -133,7 +133,7 @@ pub async fn utilization(iii: &III, format: &OutputFormat) -> Result<()> {
         })
         .await?;
 
-    if let OutputFormat::Json = format {
+    if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
         return Ok(());
     }
@@ -171,7 +171,7 @@ pub async fn utilization(iii: &III, format: &OutputFormat) -> Result<()> {
             let marker = if near { " !" } else { "" };
 
             table.add_row(vec![
-                sid[..8.min(sid.len())].to_string(),
+                sid[..sid.len().min(8)].to_string(),
                 model.to_string(),
                 format!("{used}"),
                 format!("{window}"),
@@ -194,7 +194,7 @@ pub async fn waste(iii: &III, format: &OutputFormat) -> Result<()> {
         })
         .await?;
 
-    if let OutputFormat::Json = format {
+    if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
         return Ok(());
     }
@@ -246,7 +246,7 @@ pub async fn waste(iii: &III, format: &OutputFormat) -> Result<()> {
                 .unwrap_or(0);
 
             table.add_row(vec![
-                sid[..8.min(sid.len())].to_string(),
+                sid[..sid.len().min(8)].to_string(),
                 format!("{total}"),
                 format!("{schemas}"),
                 format!("{bash}"),
