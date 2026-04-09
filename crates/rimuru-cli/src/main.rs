@@ -77,6 +77,12 @@ enum Commands {
         action: McpAction,
     },
 
+    #[command(about = "Context observability")]
+    Context {
+        #[command(subcommand)]
+        action: ContextAction,
+    },
+
     #[command(about = "Configuration")]
     Config {
         #[command(subcommand)]
@@ -188,6 +194,18 @@ enum McpAction {
 }
 
 #[derive(Subcommand)]
+enum ContextAction {
+    #[command(about = "Token breakdown for a session")]
+    Breakdown { session_id: String },
+    #[command(about = "All cached breakdowns")]
+    Breakdowns,
+    #[command(about = "Context window utilization for active sessions")]
+    Utilization,
+    #[command(about = "Identify sessions with token waste")]
+    Waste,
+}
+
+#[derive(Subcommand)]
 enum ConfigAction {
     #[command(about = "Get config value")]
     Get { key: Option<String> },
@@ -285,6 +303,15 @@ async fn main() -> Result<()> {
 
         Commands::Mcp { action } => match action {
             McpAction::List => commands::mcp::list(&iii, format).await,
+        },
+
+        Commands::Context { action } => match action {
+            ContextAction::Breakdown { session_id } => {
+                commands::context::breakdown(&iii, &session_id, format).await
+            }
+            ContextAction::Breakdowns => commands::context::breakdowns(&iii, format).await,
+            ContextAction::Utilization => commands::context::utilization(&iii, format).await,
+            ContextAction::Waste => commands::context::waste(&iii, format).await,
         },
 
         Commands::Config { action } => match action {
