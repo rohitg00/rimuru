@@ -132,6 +132,8 @@ impl ClaudeCodeAdapter {
         let mut msg_count: u64 = 0;
         let mut total_input: u64 = 0;
         let mut total_output: u64 = 0;
+        let mut total_web_search_requests: u64 = 0;
+        let mut has_fast_mode = false;
         let mut total_cache_read: u64 = 0;
         let mut total_cache_write: u64 = 0;
         let mut last_model: Option<String> = None;
@@ -209,6 +211,17 @@ impl ClaudeCodeAdapter {
                     total_output += turn_output;
                     total_cache_read += turn_cache_read;
                     total_cache_write += turn_cache_write;
+
+                    if usage.get("speed").and_then(|v| v.as_str()) == Some("fast") {
+                        has_fast_mode = true;
+                    }
+
+                    if let Some(stu) = usage.get("server_tool_use") {
+                        total_web_search_requests += stu
+                            .get("web_search_requests")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                    }
                 }
 
                 let mut tool_calls = Vec::new();
@@ -389,6 +402,8 @@ impl ClaudeCodeAdapter {
                 total_output,
                 total_cache_read,
                 total_cache_write,
+                total_web_search_requests,
+                has_fast_mode,
             );
         }
 
@@ -433,7 +448,7 @@ impl ClaudeCodeAdapter {
     }
 
     fn estimate_cost(model: &str, input_tokens: u64, output_tokens: u64) -> f64 {
-        Self::estimate_cost_full(model, input_tokens, output_tokens, 0, 0)
+        Self::estimate_cost_full(model, input_tokens, output_tokens, 0, 0, 0, false)
     }
 
     fn estimate_cost_full(
@@ -442,23 +457,36 @@ impl ClaudeCodeAdapter {
         output_tokens: u64,
         cache_read_tokens: u64,
         cache_write_tokens: u64,
+        web_search_requests: u64,
+        has_fast_mode: bool,
     ) -> f64 {
         // Pricing from Claude Code source: src/utils/modelCost.ts
         // https://platform.claude.com/docs/en/about-claude/pricing
-        let (input_rate, output_rate, cache_read_rate, cache_write_rate) = match model {
-            m if m.contains("opus-4-6") || m.contains("opus-4-5") => (5.0, 25.0, 0.50, 6.25),
-            m if m.contains("opus-4-1") || m.contains("opus-4") => (15.0, 75.0, 1.50, 18.75),
-            m if m.contains("opus") => (5.0, 25.0, 0.50, 6.25),
-            m if m.contains("sonnet") => (3.0, 15.0, 0.30, 3.75),
-            m if m.contains("haiku-4-5") => (1.0, 5.0, 0.10, 1.25),
-            m if m.contains("haiku") => (0.80, 4.0, 0.08, 1.0),
-            _ => (3.0, 15.0, 0.30, 3.75),
+        let (input_rate, output_rate, cache_read_rate, cache_write_rate) = if has_fast_mode
+            && (model.contains("opus-4-6") || model.contains("opus"))
+        {
+            // Opus 4.6 fast mode: $30/$150
+            (30.0, 150.0, 3.0, 37.5)
+        } else {
+            match model {
+                m if m.contains("opus-4-6") || m.contains("opus-4-5") => (5.0, 25.0, 0.50, 6.25),
+                m if m.contains("opus-4-1") || m.contains("opus-4") => (15.0, 75.0, 1.50, 18.75),
+                m if m.contains("opus") => (5.0, 25.0, 0.50, 6.25),
+                m if m.contains("sonnet") => (3.0, 15.0, 0.30, 3.75),
+                m if m.contains("haiku-4-5") => (1.0, 5.0, 0.10, 1.25),
+                m if m.contains("haiku") => (0.80, 4.0, 0.08, 1.0),
+                _ => (3.0, 15.0, 0.30, 3.75),
+            }
         };
+
         let per_m = |tokens: u64, rate: f64| (tokens as f64 / 1_000_000.0) * rate;
+        let web_search_cost = web_search_requests as f64 * 0.01;
+
         per_m(input_tokens, input_rate)
             + per_m(output_tokens, output_rate)
             + per_m(cache_read_tokens, cache_read_rate)
             + per_m(cache_write_tokens, cache_write_rate)
+            + web_search_cost
     }
 }
 
