@@ -443,10 +443,15 @@ impl ClaudeCodeAdapter {
         cache_read_tokens: u64,
         cache_write_tokens: u64,
     ) -> f64 {
+        // Pricing from Claude Code source: src/utils/modelCost.ts
+        // https://platform.claude.com/docs/en/about-claude/pricing
         let (input_rate, output_rate, cache_read_rate, cache_write_rate) = match model {
-            m if m.contains("opus") => (15.0, 75.0, 1.50, 18.75),
+            m if m.contains("opus-4-6") || m.contains("opus-4-5") => (5.0, 25.0, 0.50, 6.25),
+            m if m.contains("opus-4-1") || m.contains("opus-4") => (15.0, 75.0, 1.50, 18.75),
+            m if m.contains("opus") => (5.0, 25.0, 0.50, 6.25),
             m if m.contains("sonnet") => (3.0, 15.0, 0.30, 3.75),
-            m if m.contains("haiku") => (0.25, 1.25, 0.03, 0.30),
+            m if m.contains("haiku-4-5") => (1.0, 5.0, 0.10, 1.25),
+            m if m.contains("haiku") => (0.80, 4.0, 0.08, 1.0),
             _ => (3.0, 15.0, 0.30, 3.75),
         };
         let per_m = |tokens: u64, rate: f64| (tokens as f64 / 1_000_000.0) * rate;
