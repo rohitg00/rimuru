@@ -255,7 +255,26 @@ impl ClaudeCodeAdapter {
                                     .map(|v| v.to_string().len() as u64 / 4)
                                     .unwrap_or(0);
 
-                                if let Some(last_tool) = tool_calls.last_mut() {
+                                let tool_use_id = block
+                                    .get("tool_use_id")
+                                    .or_else(|| block.get("id"))
+                                    .and_then(|v| v.as_str());
+
+                                let matched = tool_use_id.and_then(|tid| {
+                                    tool_calls
+                                        .iter_mut()
+                                        .find(|tc| tc.tool_id.as_deref() == Some(tid))
+                                });
+
+                                if let Some(tc) = matched {
+                                    tc.output_tokens_estimate = output_est;
+                                    Self::classify_tool_tokens(
+                                        &tc.tool_name,
+                                        0,
+                                        output_est,
+                                        &mut breakdown,
+                                    );
+                                } else if let Some(last_tool) = tool_calls.last_mut() {
                                     last_tool.output_tokens_estimate = output_est;
                                     Self::classify_tool_tokens(
                                         &last_tool.tool_name,

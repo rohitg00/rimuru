@@ -45,10 +45,14 @@ fn register_breakdown(iii: &III, kv: &StateKV) {
                     let session_files = adapter.find_session_file(&session_id);
 
                     if let Some(path) = session_files {
-                        let (_session, breakdown) =
+                        let (parsed_session, breakdown) =
                             adapter.parse_session_jsonl_full(&path).map_err(|e| {
                                 iii_sdk::IIIError::Handler(format!("Parse error: {}", e))
                             })?;
+
+                        if let Err(e) = kv.set("sessions", &session_id, &parsed_session).await {
+                            tracing::warn!("Failed to persist parsed session: {}", e);
+                        }
 
                         if let Err(e) = kv.set("context_breakdowns", &session_id, &breakdown).await
                         {

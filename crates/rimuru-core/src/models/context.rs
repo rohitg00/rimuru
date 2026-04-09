@@ -1,9 +1,11 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextBreakdown {
     pub session_id: Uuid,
+    pub timestamp: DateTime<Utc>,
     pub total_tokens: u64,
     pub system_prompt_tokens: u64,
     pub conversation_tokens: u64,
@@ -55,6 +57,7 @@ impl ContextBreakdown {
     pub fn new(session_id: Uuid) -> Self {
         Self {
             session_id,
+            timestamp: Utc::now(),
             total_tokens: 0,
             system_prompt_tokens: 0,
             conversation_tokens: 0,
