@@ -173,6 +173,10 @@ impl McpProxy {
             .write()
             .await
             .retain(|_, (srv, _)| srv != name);
+        self.cache
+            .write()
+            .await
+            .retain(|k, _| !k.starts_with(&format!("{}::", name)));
         info!("Disconnected MCP server '{}'", name);
     }
 
@@ -186,16 +190,34 @@ impl McpProxy {
 
         let (server_name, tool) = {
             let index = self.tool_index.read().await;
-            index
-                .get(tool_name)
-                .or_else(|| {
-                    index
-                        .iter()
-                        .find(|(_, (_, t))| t.name == tool_name)
-                        .map(|(_, v)| v)
-                })
-                .cloned()
-                .ok_or_else(|| RimuruError::Bridge(format!("Tool not found: {}", tool_name)))?
+            if let Some(entry) = index.get(tool_name) {
+                entry.clone()
+            } else {
+                let matches: Vec<_> = index
+                    .iter()
+                    .filter(|(_, (_, t))| t.name == tool_name)
+                    .collect();
+
+                match matches.len() {
+                    0 => {
+                        return Err(RimuruError::Bridge(format!(
+                            "Tool not found: {}",
+                            tool_name
+                        )));
+                    }
+                    1 => matches[0].1.clone(),
+                    n => {
+                        let servers: Vec<_> =
+                            matches.iter().map(|(_, (srv, _))| srv.as_str()).collect();
+                        return Err(RimuruError::Bridge(format!(
+                            "Ambiguous tool '{}' found in {} servers: {}. Use 'server::tool' format.",
+                            tool_name,
+                            n,
+                            servers.join(", ")
+                        )));
+                    }
+                }
+            }
         };
 
         let resolved_name = &tool.name;
@@ -319,10 +341,10 @@ impl McpProxy {
         let index = self.tool_index.read().await;
         let mut stats = Vec::new();
 
-        for (name, (server, _)) in index.iter() {
-            let key = format!("{}::{}", server, name);
+        for (_, (server, tool)) in index.iter() {
+            let key = format!("{}::{}", server, tool.name);
             if let Ok(Some(metrics)) = kv.get::<ToolMetrics>("mcp_metrics", &key).await {
-                stats.push((name.clone(), metrics));
+                stats.push((tool.name.clone(), metrics));
             }
         }
 
