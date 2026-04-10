@@ -6,6 +6,7 @@ pub mod hardware;
 pub mod health;
 pub mod hooks;
 pub mod mcp;
+pub mod mcp_proxy;
 pub mod metrics;
 pub mod models;
 pub mod plugins;
@@ -13,11 +14,17 @@ pub mod sessions;
 pub mod skillkit;
 pub mod sysutil;
 
-use iii_sdk::III;
+use std::sync::Arc;
 
+use iii_sdk::III;
+use tokio::sync::RwLock;
+
+use crate::mcp::proxy::McpProxy;
 use crate::state::StateKV;
 
 pub fn register_all(iii: &III, kv: &StateKV) {
+    let proxy = Arc::new(RwLock::new(McpProxy::new()));
+
     agents::register(iii, kv);
     context::register(iii, kv);
     sessions::register(iii, kv);
@@ -27,6 +34,7 @@ pub fn register_all(iii: &III, kv: &StateKV) {
     hooks::register(iii, kv);
     plugins::register(iii, kv);
     mcp::register(iii, kv);
+    mcp_proxy::register(iii, kv, proxy);
     skillkit::register(iii, kv);
     health::register(iii, kv);
     config::register(iii, kv);

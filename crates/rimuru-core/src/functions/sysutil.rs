@@ -5,6 +5,44 @@ pub fn kv_err(e: impl std::fmt::Display) -> iii_sdk::IIIError {
     iii_sdk::IIIError::Handler(e.to_string())
 }
 
+pub fn extract_input(input: Value) -> Value {
+    if input.get("path_params").is_some() || input.get("query_params").is_some() {
+        let mut merged = input
+            .get("body")
+            .cloned()
+            .unwrap_or(Value::Object(serde_json::Map::new()));
+
+        if let Some(params) = input.get("path_params").and_then(|v| v.as_object())
+            && let Value::Object(ref mut map) = merged
+        {
+            for (k, v) in params {
+                map.insert(k.clone(), v.clone());
+            }
+        }
+
+        if let Some(params) = input.get("query_params").and_then(|v| v.as_object())
+            && let Value::Object(ref mut map) = merged
+        {
+            for (k, v) in params {
+                if !map.contains_key(k) {
+                    map.insert(k.clone(), v.clone());
+                }
+            }
+        }
+
+        merged
+    } else {
+        input
+    }
+}
+
+pub fn api_response(data: Value) -> Value {
+    serde_json::json!({
+        "status_code": 200,
+        "body": data
+    })
+}
+
 pub fn require_str(input: &Value, key: &str) -> Result<String, iii_sdk::IIIError> {
     input
         .get(key)

@@ -163,6 +163,36 @@ const ROUTES: &[Route] = &[
     },
     Route {
         method: "POST",
+        path: "api/mcp/proxy/connect",
+        function_id: "rimuru.mcp.proxy.connect",
+    },
+    Route {
+        method: "GET",
+        path: "api/mcp/proxy/tools",
+        function_id: "rimuru.mcp.proxy.tools",
+    },
+    Route {
+        method: "POST",
+        path: "api/mcp/proxy/call",
+        function_id: "rimuru.mcp.proxy.call",
+    },
+    Route {
+        method: "GET",
+        path: "api/mcp/proxy/search",
+        function_id: "rimuru.mcp.proxy.search",
+    },
+    Route {
+        method: "GET",
+        path: "api/mcp/proxy/stats",
+        function_id: "rimuru.mcp.proxy.stats",
+    },
+    Route {
+        method: "POST",
+        path: "api/mcp/proxy/disconnect",
+        function_id: "rimuru.mcp.proxy.disconnect",
+    },
+    Route {
+        method: "POST",
         path: "api/hooks/register",
         function_id: "rimuru.hooks.register",
     },
