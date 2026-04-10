@@ -58,6 +58,11 @@ impl McpProxy {
         }
         drop(index);
 
+        self.cache
+            .write()
+            .await
+            .retain(|k, _| !k.starts_with(&format!("{}::", server_name)));
+
         let schema_tokens: u64 = tools
             .iter()
             .map(|t| McpClient::estimate_tokens(&t.input_schema.clone().unwrap_or(json!({}))))
