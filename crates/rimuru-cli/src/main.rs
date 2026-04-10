@@ -189,8 +189,32 @@ enum HooksAction {
 
 #[derive(Subcommand)]
 enum McpAction {
-    #[command(about = "List MCP servers")]
+    #[command(about = "List discovered MCP servers")]
     List,
+    #[command(about = "Connect proxy to an MCP server")]
+    Connect {
+        name: String,
+        command: String,
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    #[command(about = "Disconnect proxy from an MCP server")]
+    Disconnect { name: String },
+    #[command(about = "List tools via proxy (with progressive disclosure)")]
+    Tools {
+        #[arg(long)]
+        server: Option<String>,
+    },
+    #[command(about = "Search tools by intent")]
+    Search { query: String },
+    #[command(about = "Call a tool via proxy")]
+    Call {
+        tool: String,
+        #[arg(long)]
+        args: Option<String>,
+    },
+    #[command(about = "Show per-tool token usage stats")]
+    Stats,
 }
 
 #[derive(Subcommand)]
@@ -303,6 +327,22 @@ async fn main() -> Result<()> {
 
         Commands::Mcp { action } => match action {
             McpAction::List => commands::mcp::list(&iii, format).await,
+            McpAction::Connect {
+                name,
+                command,
+                args,
+            } => commands::mcp::proxy_connect(&iii, &name, &command, &args, format).await,
+            McpAction::Disconnect { name } => {
+                commands::mcp::proxy_disconnect(&iii, &name, format).await
+            }
+            McpAction::Tools { server } => {
+                commands::mcp::proxy_tools(&iii, server.as_deref(), format).await
+            }
+            McpAction::Search { query } => commands::mcp::proxy_search(&iii, &query, format).await,
+            McpAction::Call { tool, args } => {
+                commands::mcp::proxy_call(&iii, &tool, args.as_deref(), format).await
+            }
+            McpAction::Stats => commands::mcp::proxy_stats(&iii, format).await,
         },
 
         Commands::Context { action } => match action {
