@@ -13,6 +13,7 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let plugins = if let Some(arr) = result.get("plugins").and_then(|v| v.as_array()) {
         arr.clone()
     } else {
@@ -32,6 +33,7 @@ pub async fn install(iii: &III, plugin_path: &str, format: &OutputFormat) -> Res
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     let success = result
         .get("installed")
@@ -59,6 +61,7 @@ pub async fn uninstall(iii: &III, plugin_id: &str, format: &OutputFormat) -> Res
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     let success = result
         .get("uninstalled")

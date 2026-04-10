@@ -13,6 +13,7 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let sessions = if let Some(arr) = result.get("sessions").and_then(|v| v.as_array()) {
         arr.clone()
     } else {
@@ -31,6 +32,7 @@ pub async fn show(iii: &III, session_id: &str, format: &OutputFormat) -> Result<
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     output::print_value(&result, format);
     Ok(())
 }
@@ -44,6 +46,7 @@ pub async fn active(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let sessions = result
         .get("active_sessions")
         .or_else(|| result.get("sessions"))
@@ -67,6 +70,7 @@ pub async fn history(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let sessions = match &result {
         Value::Array(arr) => arr.clone(),
         Value::Object(map) => map

@@ -13,6 +13,7 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let models = if let Some(arr) = result.get("models").and_then(|v| v.as_array()) {
         arr.clone()
     } else {
@@ -32,6 +33,7 @@ pub async fn sync(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     output::print_value(&result, format);
     Ok(())
 }
@@ -45,6 +47,7 @@ pub async fn get(iii: &III, model_id: &str, format: &OutputFormat) -> Result<()>
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     if result.is_null()
         || result

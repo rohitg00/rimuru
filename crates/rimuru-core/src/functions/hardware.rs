@@ -1,7 +1,9 @@
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, parse_meminfo_kb, parse_vm_stat_value, run_cmd};
+use super::sysutil::{
+    api_response, extract_input, kv_err, parse_meminfo_kb, parse_vm_stat_value, run_cmd,
+};
 use crate::models::hardware::{assess_fit, local_equivalents};
 use crate::models::{
     AccelBackend, CatalogEntry, CatalogModel, FitLevel, GpuInfo, HardwareInfo, LocalModelAdvisory,
@@ -29,7 +31,7 @@ fn register_detect(iii: &III, kv: &StateKV) {
                 kv.set("hardware", "system_info", &hw)
                     .await
                     .map_err(kv_err)?;
-                Ok(json!({"hardware": hw}))
+                Ok(api_response(json!({"hardware": hw})))
             }
         },
     );
@@ -45,13 +47,13 @@ fn register_get(iii: &III, kv: &StateKV) {
                 let hw: Option<HardwareInfo> =
                     kv.get("hardware", "system_info").await.map_err(kv_err)?;
                 match hw {
-                    Some(h) => Ok(json!({"hardware": h})),
+                    Some(h) => Ok(api_response(json!({"hardware": h}))),
                     None => {
                         let detected = detect_hardware().await;
                         kv.set("hardware", "system_info", &detected)
                             .await
                             .map_err(kv_err)?;
-                        Ok(json!({"hardware": detected}))
+                        Ok(api_response(json!({"hardware": detected})))
                     }
                 }
             }
@@ -134,7 +136,7 @@ fn register_assess(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({"advisories": advisories}))
+                Ok(api_response(json!({"advisories": advisories})))
             }
         },
     );
@@ -147,6 +149,7 @@ fn register_catalog(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let hw: Option<HardwareInfo> =
                     kv.get("hardware", "system_info").await.map_err(kv_err)?;
 
@@ -213,7 +216,7 @@ fn register_catalog(iii: &III, kv: &StateKV) {
                     .filter(|e| e.fit_level == FitLevel::Marginal)
                     .count();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "entries": entries,
                     "total": total,
                     "summary": {
@@ -222,7 +225,7 @@ fn register_catalog(iii: &III, kv: &StateKV) {
                         "marginal": marginal,
                         "catalog_size": catalog.len()
                     }
-                }))
+                })))
             }
         },
     );

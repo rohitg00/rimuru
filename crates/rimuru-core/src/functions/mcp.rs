@@ -1,6 +1,7 @@
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
+use super::sysutil::api_response;
 use crate::state::StateKV;
 
 pub fn register(iii: &III, _kv: &StateKV) {
@@ -12,10 +13,10 @@ fn register_list(iii: &III) {
         RegisterFunctionMessage::with_id("rimuru.mcp.list".to_string()),
         move |_input: Value| async move {
             let servers = crate::discovery::discover_mcp_servers().await;
-            Ok(json!({
+            Ok(api_response(json!({
                 "servers": servers,
                 "total": servers.len()
-            }))
+            })))
         },
     );
 }

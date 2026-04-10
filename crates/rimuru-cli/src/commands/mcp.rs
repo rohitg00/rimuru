@@ -13,6 +13,7 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let servers = if let Some(arr) = result.get("servers").and_then(|v| v.as_array()) {
         arr.clone()
     } else {

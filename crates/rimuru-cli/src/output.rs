@@ -9,6 +9,10 @@ pub enum OutputFormat {
     Yaml,
 }
 
+pub fn unwrap_body(result: Value) -> Value {
+    result.get("body").cloned().unwrap_or(result)
+}
+
 fn new_table(headers: &[&str]) -> Table {
     let mut table = Table::new();
     table.set_content_arrangement(ContentArrangement::Dynamic);

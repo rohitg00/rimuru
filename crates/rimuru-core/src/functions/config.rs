@@ -1,7 +1,7 @@
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::state::StateKV;
 
 pub fn register(iii: &III, kv: &StateKV) {
@@ -40,6 +40,7 @@ fn register_get(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let key = input.get("key").and_then(|v| v.as_str());
 
                 match key {
@@ -50,17 +51,17 @@ fn register_get(iii: &III, kv: &StateKV) {
                         let default_val = defaults.get(k);
 
                         match value {
-                            Some(v) => Ok(json!({
+                            Some(v) => Ok(api_response(json!({
                                 "key": k,
                                 "value": v,
                                 "source": "user"
-                            })),
+                            }))),
                             None => match default_val {
-                                Some(d) => Ok(json!({
+                                Some(d) => Ok(api_response(json!({
                                     "key": k,
                                     "value": d,
                                     "source": "default"
-                                })),
+                                }))),
                                 None => Err(iii_sdk::IIIError::Handler(format!(
                                     "unknown config key: {}",
                                     k
@@ -107,10 +108,10 @@ fn register_get(iii: &III, kv: &StateKV) {
                             }
                         }
 
-                        Ok(json!({
+                        Ok(api_response(json!({
                             "config": merged,
                             "sources": sources
-                        }))
+                        })))
                     }
                 }
             }
@@ -125,6 +126,7 @@ fn register_set(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let key = require_str(&input, "key")?;
 
                 let value = input
@@ -155,12 +157,12 @@ fn register_set(iii: &III, kv: &StateKV) {
 
                 kv.set("config", &key, &value).await.map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "key": key,
                     "value": value,
                     "old_value": old_value,
                     "updated": true
-                }))
+                })))
             }
         },
     );

@@ -3,7 +3,7 @@ use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 use tracing::{info, warn};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::adapters::{
     AgentAdapter, ClaudeCodeAdapter, CodexAdapter, CopilotAdapter, CursorAdapter, GooseAdapter,
     OpenCodeAdapter,
@@ -31,6 +31,7 @@ fn register_list(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agents: Vec<Agent> = kv.list("agents").await.map_err(kv_err)?;
 
                 let agent_type_filter = input
@@ -53,10 +54,10 @@ fn register_list(iii: &III, kv: &StateKV) {
                     .filter(|a| status_filter.as_ref().is_none_or(|s| a.status == *s))
                     .collect();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "agents": filtered,
                     "total": filtered.len()
-                }))
+                })))
             }
         },
     );
@@ -69,6 +70,7 @@ fn register_get(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id = require_str(&input, "agent_id")?;
 
                 let agent: Option<Agent> = kv.get("agents", &agent_id).await.map_err(kv_err)?;
@@ -78,10 +80,10 @@ fn register_get(iii: &III, kv: &StateKV) {
                         let config: Option<AgentConfig> =
                             kv.get("agent_config", &agent_id).await.map_err(kv_err)?;
 
-                        Ok(json!({
+                        Ok(api_response(json!({
                             "agent": a,
                             "config": config
-                        }))
+                        })))
                     }
                     None => Err(iii_sdk::IIIError::Handler(format!(
                         "agent not found: {}",
@@ -100,6 +102,7 @@ fn register_create(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_type: AgentType =
                     serde_json::from_value(input.get("agent_type").cloned().ok_or_else(|| {
                         iii_sdk::IIIError::Handler("agent_type is required".into())
@@ -138,10 +141,10 @@ fn register_create(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "agent": agent,
                     "config": config
-                }))
+                })))
             }
         },
     );
@@ -154,6 +157,7 @@ fn register_update(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id = require_str(&input, "agent_id")?;
 
                 let mut agent: Agent = kv
@@ -186,7 +190,7 @@ fn register_update(iii: &III, kv: &StateKV) {
 
                 kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
-                Ok(json!({"agent": agent}))
+                Ok(api_response(json!({"agent": agent})))
             }
         },
     );
@@ -199,6 +203,7 @@ fn register_delete(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id = require_str(&input, "agent_id")?;
 
                 let _agent: Agent = kv
@@ -213,7 +218,7 @@ fn register_delete(iii: &III, kv: &StateKV) {
 
                 kv.delete("agent_config", &agent_id).await.map_err(kv_err)?;
 
-                Ok(json!({"deleted": agent_id}))
+                Ok(api_response(json!({"deleted": agent_id})))
             }
         },
     );
@@ -226,6 +231,7 @@ fn register_status(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id = require_str(&input, "agent_id")?;
 
                 let new_status: AgentStatus = serde_json::from_value(
@@ -254,11 +260,11 @@ fn register_status(iii: &III, kv: &StateKV) {
 
                 kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "agent_id": agent_id,
                     "old_status": old_status,
                     "new_status": new_status
-                }))
+                })))
             }
         },
     );
@@ -296,6 +302,7 @@ fn register_detect(iii: &III, kv: &StateKV) {
     iii.register_function_with(RegisterFunctionMessage::with_id("rimuru.agents.detect".to_string()), move |input: Value| {
         let kv = kv.clone();
         async move {
+            let input = extract_input(input);
             let auto_register = input
                 .get("auto_register")
                 .and_then(|v| v.as_bool())
@@ -341,10 +348,10 @@ fn register_detect(iii: &III, kv: &StateKV) {
                 }));
             }
 
-            Ok(json!({
+            Ok(api_response(json!({
                 "detected": detected,
                 "total": detected.iter().filter(|d| d["installed"].as_bool().unwrap_or(false)).count()
-            }))
+            })))
         }
     });
 }
@@ -356,6 +363,7 @@ fn register_connect(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_type_str = require_str(&input, "agent_type")?;
 
                 let agent_type: AgentType =
@@ -373,7 +381,7 @@ fn register_connect(iii: &III, kv: &StateKV) {
                     agent.connected_at = Some(Utc::now());
                     agent.last_seen = Some(Utc::now());
                     kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
-                    return Ok(json!({"agent": agent, "action": "connected"}));
+                    return Ok(api_response(json!({"agent": agent, "action": "connected"})));
                 }
 
                 let checks = agent_checks();
@@ -401,7 +409,9 @@ fn register_connect(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({"agent": agent, "action": "created_and_connected"}))
+                Ok(api_response(
+                    json!({"agent": agent, "action": "created_and_connected"}),
+                ))
             }
         },
     );
@@ -414,6 +424,7 @@ fn register_disconnect(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id = require_str(&input, "agent_id")?;
 
                 let mut agent: Agent = kv
@@ -429,7 +440,9 @@ fn register_disconnect(iii: &III, kv: &StateKV) {
 
                 kv.set("agents", &agent_id, &agent).await.map_err(kv_err)?;
 
-                Ok(json!({"agent": agent, "action": "disconnected"}))
+                Ok(api_response(
+                    json!({"agent": agent, "action": "disconnected"}),
+                ))
             }
         },
     );
@@ -634,11 +647,11 @@ fn register_sync(iii: &III, kv: &StateKV) {
                     synced_sessions, synced_costs, synced_agents
                 );
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "synced_agents": synced_agents,
                     "synced_sessions": synced_sessions,
                     "synced_costs": synced_costs
-                }))
+                })))
             }
         },
     );

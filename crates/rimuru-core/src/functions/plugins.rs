@@ -2,7 +2,7 @@ use chrono::Utc;
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::models::{PluginLanguage, PluginManifest, PluginState, PluginStatus};
 use crate::state::StateKV;
 
@@ -20,6 +20,7 @@ fn register_install(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let plugin_id = require_str(&input, "id")?;
 
                 let name = input
@@ -123,11 +124,11 @@ fn register_install(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "plugin": manifest,
                     "state": ready_state,
                     "installed": true
-                }))
+                })))
             }
         },
     );
@@ -140,6 +141,7 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let plugin_id = require_str(&input, "id")?;
 
                 let manifest: PluginManifest = kv
@@ -170,10 +172,10 @@ fn register_uninstall(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "uninstalled": plugin_id,
                     "name": manifest.name
-                }))
+                })))
             }
         },
     );
@@ -184,10 +186,10 @@ fn register_list(iii: &III, _kv: &StateKV) {
         RegisterFunctionMessage::with_id("rimuru.plugins.list".to_string()),
         move |_input: Value| async move {
             let result = crate::discovery::discover_plugins().await;
-            Ok(json!({
+            Ok(api_response(json!({
                 "plugins": result,
                 "total": result.len()
-            }))
+            })))
         },
     );
 }
@@ -199,6 +201,7 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv_start.clone();
             async move {
+                let input = extract_input(input);
                 let plugin_id = require_str(&input, "id")?;
 
                 let manifest: PluginManifest = kv
@@ -238,11 +241,11 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
                             .await
                             .map_err(kv_err)?;
 
-                        Ok(json!({
+                        Ok(api_response(json!({
                             "plugin_id": plugin_id,
                             "status": "running",
                             "pid": pid
-                        }))
+                        })))
                     }
                     Err(e) => {
                         let state = PluginState {
@@ -274,6 +277,7 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv_stop.clone();
             async move {
+                let input = extract_input(input);
                 let plugin_id = require_str(&input, "id")?;
 
                 let current_state: PluginState = kv
@@ -318,10 +322,10 @@ fn register_lifecycle(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "plugin_id": plugin_id,
                     "status": "stopped"
-                }))
+                })))
             }
         },
     );

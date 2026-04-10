@@ -3,7 +3,7 @@ use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::models::{Agent, Session, SessionFilter, SessionStatus};
 use crate::state::StateKV;
 
@@ -22,6 +22,7 @@ fn register_list(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
                 let filter: SessionFilter = serde_json::from_value(input).unwrap_or_default();
@@ -38,11 +39,11 @@ fn register_list(iii: &III, kv: &StateKV) {
                 let limit = filter.limit.unwrap_or(100);
                 let result: Vec<&&Session> = filtered.iter().take(limit).collect();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "sessions": result,
                     "total": filtered.len(),
                     "limit": limit
-                }))
+                })))
             }
         },
     );
@@ -55,6 +56,7 @@ fn register_get(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let session_id = require_str(&input, "session_id")?;
 
                 let session: Option<Session> =
@@ -63,10 +65,10 @@ fn register_get(iii: &III, kv: &StateKV) {
                 match session {
                     Some(s) => {
                         let duration = s.duration_secs();
-                        Ok(json!({
+                        Ok(api_response(json!({
                             "session": s,
                             "duration_secs": duration
-                        }))
+                        })))
                     }
                     None => Err(iii_sdk::IIIError::Handler(format!(
                         "session not found: {}",
@@ -113,13 +115,13 @@ fn register_active(iii: &III, kv: &StateKV) {
                     }
                 }
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "active_sessions": active,
                     "total": active.len(),
                     "total_cost": total_cost,
                     "total_tokens": total_tokens,
                     "by_agent": by_agent
-                }))
+                })))
             }
         },
     );
@@ -132,6 +134,7 @@ fn register_history(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
 
                 let agent_id = input
@@ -168,7 +171,7 @@ fn register_history(iii: &III, kv: &StateKV) {
                     .filter(|s| s.status == SessionStatus::Error)
                     .count();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "sessions": result,
                     "total": history.len(),
                     "total_cost": total_cost,
@@ -177,7 +180,7 @@ fn register_history(iii: &III, kv: &StateKV) {
                     "completed": completed,
                     "errored": errored,
                     "days": days
-                }))
+                })))
             }
         },
     );
@@ -190,6 +193,7 @@ fn register_cleanup(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let max_age_days = input
                     .get("max_age_days")
                     .and_then(|v| v.as_u64())
@@ -218,12 +222,12 @@ fn register_cleanup(iii: &III, kv: &StateKV) {
                     cleaned += 1;
                 }
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "cleaned": cleaned,
                     "freed_cost": freed_cost,
                     "max_age_days": max_age_days,
                     "cutoff": cutoff.to_rfc3339()
-                }))
+                })))
             }
         },
     );

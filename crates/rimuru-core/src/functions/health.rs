@@ -2,6 +2,7 @@ use chrono::Utc;
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
+use super::sysutil::api_response;
 use crate::models::{
     Agent, AgentStatus, PluginState, PluginStatus, Session, SessionStatus, SystemMetrics,
 };
@@ -172,7 +173,7 @@ fn register_check(iii: &III, kv: &StateKV) {
                     format!("{}m {}s", uptime_secs / 60, uptime_secs % 60)
                 };
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "status": if overall_healthy { "healthy" } else { "degraded" },
                     "uptime_secs": uptime_secs,
                     "uptime": uptime_display,
@@ -180,7 +181,7 @@ fn register_check(iii: &III, kv: &StateKV) {
                     "timestamp": Utc::now().to_rfc3339(),
                     "version": env!("CARGO_PKG_VERSION"),
                     "checks": check_json
-                }))
+                })))
             }
         },
     );

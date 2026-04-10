@@ -13,6 +13,7 @@ pub async fn current(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let metrics = result.get("metrics").unwrap_or(&result);
     println!("{}", output::format_metrics(metrics, format));
     Ok(())
@@ -27,6 +28,7 @@ pub async fn history(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let entries = result
         .get("history")
         .and_then(|v| v.get("entries"))

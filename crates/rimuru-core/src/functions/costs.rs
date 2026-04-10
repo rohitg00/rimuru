@@ -10,7 +10,7 @@ use crate::models::{
 };
 use crate::state::StateKV;
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 
 struct AgentAccum {
     agent_type: AgentType,
@@ -53,6 +53,7 @@ fn register_record(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id_str = require_str(&input, "agent_id")?;
 
                 let agent_id = Uuid::parse_str(&agent_id_str)
@@ -166,10 +167,10 @@ fn register_record(iii: &III, kv: &StateKV) {
                 .await
                 .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "record": record,
                     "recorded": true
-                }))
+                })))
             }
         },
     );
@@ -182,6 +183,7 @@ fn register_summary(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let records: Vec<CostRecord> = kv.list("cost_records").await.map_err(kv_err)?;
 
                 let since = input
@@ -280,7 +282,7 @@ fn register_summary(iii: &III, kv: &StateKV) {
                     period_end: until,
                 };
 
-                Ok(json!({"summary": summary}))
+                Ok(api_response(json!({"summary": summary})))
             }
         },
     );
@@ -293,6 +295,7 @@ fn register_daily(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let days = input.get("days").and_then(|v| v.as_u64()).unwrap_or(30);
 
                 let records: Vec<CostRecord> = kv.list("cost_records").await.map_err(kv_err)?;
@@ -339,12 +342,12 @@ fn register_daily(iii: &III, kv: &StateKV) {
 
                 let total_cost: f64 = filtered.iter().map(|r| r.total_cost).sum();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "daily": daily,
                     "total_cost": total_cost,
                     "days": days,
                     "total_days_with_usage": daily.len()
-                }))
+                })))
             }
         },
     );
@@ -357,6 +360,7 @@ fn register_by_agent(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let agent_id_str = require_str(&input, "agent_id")?;
 
                 let agent_id = Uuid::parse_str(&agent_id_str)
@@ -402,7 +406,7 @@ fn register_by_agent(iii: &III, kv: &StateKV) {
                     })
                     .collect();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "agent_id": agent_id,
                     "total_cost": total_cost,
                     "total_input_tokens": total_input,
@@ -410,7 +414,7 @@ fn register_by_agent(iii: &III, kv: &StateKV) {
                     "total_records": filtered.len(),
                     "by_model": models,
                     "days": days
-                }))
+                })))
             }
         },
     );
@@ -423,6 +427,7 @@ fn register_daily_rollup(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let date_str = input.get("date").and_then(|v| v.as_str()).unwrap_or("");
 
                 let target_date = if date_str.is_empty() {
@@ -494,10 +499,10 @@ fn register_daily_rollup(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "rollup": rollup,
                     "persisted": true
-                }))
+                })))
             }
         },
     );

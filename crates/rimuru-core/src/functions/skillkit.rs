@@ -1,7 +1,7 @@
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::state::StateKV;
 
 pub fn register(iii: &III, kv: &StateKV) {
@@ -65,6 +65,7 @@ fn register_search(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let query = require_str(&input, "query")?;
 
                 let limit = input
@@ -77,11 +78,11 @@ fn register_search(iii: &III, kv: &StateKV) {
                 let cached: Option<Value> = kv.get("config", &cache_key).await.map_err(kv_err)?;
 
                 if let Some(cached_result) = cached {
-                    return Ok(json!({
+                    return Ok(api_response(json!({
                         "results": cached_result,
                         "cached": true,
                         "query": query
-                    }));
+                    })));
                 }
 
                 let result = run_skillkit_command(&["search", &query, "--limit", &limit]).await?;
@@ -90,11 +91,11 @@ fn register_search(iii: &III, kv: &StateKV) {
                     tracing::warn!("Failed to cache skillkit result for {}: {}", cache_key, e);
                 }
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "results": result,
                     "cached": false,
                     "query": query
-                }))
+                })))
             }
         },
     );
@@ -104,6 +105,7 @@ fn register_install(iii: &III, _kv: &StateKV) {
     iii.register_function_with(
         RegisterFunctionMessage::with_id("rimuru.skillkit.install".to_string()),
         move |input: Value| async move {
+            let input = extract_input(input);
             let skill_name = require_str(&input, "skill")?;
 
             let agent = input
@@ -120,11 +122,11 @@ fn register_install(iii: &III, _kv: &StateKV) {
 
             let result = run_skillkit_command(&args).await?;
 
-            Ok(json!({
+            Ok(api_response(json!({
                 "skill": skill_name,
                 "agent": agent,
                 "result": result
-            }))
+            })))
         },
     );
 }
@@ -133,6 +135,7 @@ fn register_translate(iii: &III, _kv: &StateKV) {
     iii.register_function_with(
         RegisterFunctionMessage::with_id("rimuru.skillkit.translate".to_string()),
         move |input: Value| async move {
+            let input = extract_input(input);
             let skill_name = require_str(&input, "skill")?;
 
             let target_agent = require_str(&input, "target_agent")?;
@@ -140,11 +143,11 @@ fn register_translate(iii: &III, _kv: &StateKV) {
             let result =
                 run_skillkit_command(&["translate", &skill_name, "--agent", &target_agent]).await?;
 
-            Ok(json!({
+            Ok(api_response(json!({
                 "skill": skill_name,
                 "target_agent": target_agent,
                 "result": result
-            }))
+            })))
         },
     );
 }
@@ -156,6 +159,7 @@ fn register_recommend(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let context = input
                     .get("context")
                     .and_then(|v| v.as_str())
@@ -196,12 +200,12 @@ fn register_recommend(iii: &III, kv: &StateKV) {
                     .map(|a| format!("{:?}", a.agent_type).to_lowercase())
                     .collect();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "recommendations": result,
                     "agent": agent,
                     "context": context,
                     "active_agents": active_agent_types
-                }))
+                })))
             }
         },
     );

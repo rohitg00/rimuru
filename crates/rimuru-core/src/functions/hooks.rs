@@ -1,7 +1,7 @@
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::models::HookRegistration;
 use crate::state::StateKV;
 
@@ -18,6 +18,7 @@ fn register_dispatch(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let event_type = require_str(&input, "event_type")?;
 
                 let payload = input.get("payload").cloned().unwrap_or(json!({}));
@@ -64,14 +65,14 @@ fn register_dispatch(iii: &III, kv: &StateKV) {
                     }
                 }
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "event_type": event_type,
                     "hooks_matched": matching.len(),
                     "results": results,
                     "errors": errors,
                     "total_succeeded": results.len(),
                     "total_failed": errors.len()
-                }))
+                })))
             }
         },
     );
@@ -84,6 +85,7 @@ fn register_register(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let event_type = require_str(&input, "event_type")?;
 
                 let function_id = require_str(&input, "function_id")?;
@@ -107,17 +109,17 @@ fn register_register(iii: &III, kv: &StateKV) {
                 if already_exists {
                     kv.set("hooks", &hook_key, &hook).await.map_err(kv_err)?;
 
-                    Ok(json!({
+                    Ok(api_response(json!({
                         "hook": hook,
                         "updated": true
-                    }))
+                    })))
                 } else {
                     kv.set("hooks", &hook_key, &hook).await.map_err(kv_err)?;
 
-                    Ok(json!({
+                    Ok(api_response(json!({
                         "hook": hook,
                         "registered": true
-                    }))
+                    })))
                 }
             }
         },
@@ -142,11 +144,11 @@ fn register_list(iii: &III, _kv: &StateKV) {
                 .collect();
             event_types.sort();
 
-            Ok(json!({
+            Ok(api_response(json!({
                 "hooks": hooks,
                 "total": hooks.len(),
                 "event_types": event_types
-            }))
+            })))
         },
     );
 }

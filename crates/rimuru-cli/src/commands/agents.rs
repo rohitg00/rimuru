@@ -13,6 +13,7 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let agents = result
         .get("agents")
         .and_then(|v| v.as_array())
@@ -31,6 +32,7 @@ pub async fn show(iii: &III, agent_id: &str, format: &OutputFormat) -> Result<()
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     output::print_value(&result, format);
     Ok(())
 }
@@ -44,6 +46,7 @@ pub async fn connect(iii: &III, agent_type: &str, format: &OutputFormat) -> Resu
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     output::print_value(&result, format);
     Ok(())
 }
@@ -57,6 +60,7 @@ pub async fn disconnect(iii: &III, agent_id: &str, format: &OutputFormat) -> Res
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     output::print_value(&result, format);
     Ok(())
 }
@@ -70,6 +74,7 @@ pub async fn detect(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let agents = result
         .get("detected")
         .and_then(|v| v.as_array())

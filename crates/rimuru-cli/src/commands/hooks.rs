@@ -13,6 +13,7 @@ pub async fn list(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let hooks = if let Some(arr) = result.get("hooks").and_then(|v| v.as_array()) {
         arr.clone()
     } else {
@@ -41,6 +42,7 @@ pub async fn register(
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     let success = result
         .get("registered")
@@ -78,6 +80,7 @@ pub async fn dispatch(
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     let handler_count = result
         .get("handlers_called")

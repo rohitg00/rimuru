@@ -2,7 +2,7 @@ use iii_sdk::{III, RegisterFunctionMessage};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::adapters::ClaudeCodeAdapter;
 use crate::models::{AgentType, ContextBreakdown, ContextUtilization, Session};
 use crate::state::StateKV;
@@ -21,6 +21,7 @@ fn register_breakdown(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let session_id = require_str(&input, "session_id")?;
 
                 let cached: Option<ContextBreakdown> = kv
@@ -29,7 +30,9 @@ fn register_breakdown(iii: &III, kv: &StateKV) {
                     .map_err(kv_err)?;
 
                 if let Some(breakdown) = cached {
-                    return Ok(serde_json::to_value(breakdown).unwrap_or_default());
+                    return Ok(api_response(
+                        serde_json::to_value(breakdown).unwrap_or_default(),
+                    ));
                 }
 
                 let session: Session = kv
@@ -59,11 +62,15 @@ fn register_breakdown(iii: &III, kv: &StateKV) {
                             tracing::warn!("Failed to cache breakdown: {}", e);
                         }
 
-                        return Ok(serde_json::to_value(breakdown).unwrap_or_default());
+                        return Ok(api_response(
+                            serde_json::to_value(breakdown).unwrap_or_default(),
+                        ));
                     }
                 }
 
-                Ok(json!({"error": "No breakdown available for this session type"}))
+                Ok(api_response(
+                    json!({"error": "No breakdown available for this session type"}),
+                ))
             }
         },
     );
@@ -79,10 +86,10 @@ fn register_breakdown_by_session(iii: &III, kv: &StateKV) {
                 let breakdowns: Vec<ContextBreakdown> =
                     kv.list("context_breakdowns").await.map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "breakdowns": breakdowns,
                     "total": breakdowns.len()
-                }))
+                })))
             }
         },
     );
@@ -128,11 +135,11 @@ fn register_utilization(iii: &III, kv: &StateKV) {
                     })
                     .collect();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "utilizations": utilizations,
                     "total_active": active.len(),
                     "threshold_percent": threshold
-                }))
+                })))
             }
         },
     );
@@ -173,11 +180,11 @@ fn register_waste(iii: &III, kv: &StateKV) {
 
                 let total_waste: u64 = waste_reports.iter().map(|r| r.potential_savings).sum();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "sessions": waste_reports,
                     "total_waste_tokens": total_waste,
                     "total_sessions_analyzed": breakdowns.len()
-                }))
+                })))
             }
         },
     );

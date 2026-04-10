@@ -13,6 +13,7 @@ pub async fn summary(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let summary = result.get("summary").unwrap_or(&result);
     println!("{}", output::format_costs_summary(summary, format));
     Ok(())
@@ -27,6 +28,7 @@ pub async fn daily(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let entries = result
         .get("daily")
         .and_then(|v| v.as_array())
@@ -50,6 +52,7 @@ pub async fn agent(iii: &III, agent_id: Option<&str>, format: &OutputFormat) -> 
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let agents = match result {
         Value::Array(arr) => arr,
         other => vec![other],
@@ -67,6 +70,7 @@ pub async fn export(iii: &III, path: &str) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     let content = serde_json::to_string_pretty(&result)?;
     std::fs::write(path, &content)?;
     println!("Exported costs to {path}");

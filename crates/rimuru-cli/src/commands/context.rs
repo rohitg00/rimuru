@@ -14,6 +14,7 @@ pub async fn breakdown(iii: &III, session_id: &str, format: &OutputFormat) -> Re
             timeout_ms: Some(30_000),
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
@@ -90,6 +91,7 @@ pub async fn breakdowns(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
@@ -132,6 +134,7 @@ pub async fn utilization(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);
@@ -193,6 +196,7 @@ pub async fn waste(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     if matches!(format, OutputFormat::Json | OutputFormat::Yaml) {
         output::print_value(&result, format);

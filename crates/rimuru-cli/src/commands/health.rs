@@ -13,6 +13,7 @@ pub async fn check(iii: &III, format: &OutputFormat) -> Result<()> {
             timeout_ms: Some(5_000),
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
     println!("{}", output::format_health(&result, format));
 
     let status = result

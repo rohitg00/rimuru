@@ -2,7 +2,7 @@ use chrono::Utc;
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{collect_cpu_usage, collect_memory_info, kv_err};
+use super::sysutil::{api_response, collect_cpu_usage, collect_memory_info, extract_input, kv_err};
 use crate::models::{Agent, AgentStatus, MetricsHistory, Session, SessionStatus, SystemMetrics};
 use crate::state::StateKV;
 
@@ -23,10 +23,12 @@ fn register_current(iii: &III, kv: &StateKV) {
                     kv.get("system_metrics", "latest").await.map_err(kv_err)?;
 
                 match metrics {
-                    Some(m) => Ok(json!({"metrics": m})),
+                    Some(m) => Ok(api_response(json!({"metrics": m}))),
                     None => {
                         let default = SystemMetrics::default();
-                        Ok(json!({"metrics": default, "note": "no metrics collected yet"}))
+                        Ok(api_response(
+                            json!({"metrics": default, "note": "no metrics collected yet"}),
+                        ))
                     }
                 }
             }
@@ -41,6 +43,7 @@ fn register_history(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(60) as usize;
 
                 let interval = input
@@ -59,7 +62,7 @@ fn register_history(iii: &III, kv: &StateKV) {
                         }
                         h.total_entries = h.entries.len();
                         h.interval_secs = interval;
-                        Ok(json!({"history": h}))
+                        Ok(api_response(json!({"history": h})))
                     }
                     None => {
                         let empty = MetricsHistory {
@@ -67,7 +70,7 @@ fn register_history(iii: &III, kv: &StateKV) {
                             interval_secs: interval,
                             total_entries: 0,
                         };
-                        Ok(json!({"history": empty}))
+                        Ok(api_response(json!({"history": empty})))
                     }
                 }
             }
@@ -172,10 +175,10 @@ fn register_collect(iii: &III, kv: &StateKV) {
                     .await
                     .map_err(kv_err)?;
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "metrics": metrics,
                     "history_size": history.total_entries
-                }))
+                })))
             }
         },
     );

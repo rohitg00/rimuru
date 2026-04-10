@@ -18,6 +18,7 @@ pub async fn get(iii: &III, key: Option<&str>, format: &OutputFormat) -> Result<
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     if let Some(k) = key {
         if let Some(val) = result.get("value") {
@@ -62,6 +63,7 @@ pub async fn set(iii: &III, key: &str, value: &str, format: &OutputFormat) -> Re
             timeout_ms: None,
         })
         .await?;
+    let result = crate::output::unwrap_body(result);
 
     println!("Set {key} = {value}");
     output::print_value(&result, format);

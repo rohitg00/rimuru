@@ -2,7 +2,7 @@ use chrono::Utc;
 use iii_sdk::{III, RegisterFunctionMessage};
 use serde_json::{Value, json};
 
-use super::sysutil::{kv_err, require_str};
+use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::models::{ModelInfo, ModelProvider, ModelSyncStatus};
 use crate::state::StateKV;
 
@@ -277,6 +277,7 @@ fn register_list(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
 
                 let models = if stored.is_empty() {
@@ -295,10 +296,10 @@ fn register_list(iii: &III, kv: &StateKV) {
                     .filter(|m| provider_filter.as_ref().is_none_or(|p| m.provider == *p))
                     .collect();
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "models": filtered,
                     "total": filtered.len()
-                }))
+                })))
             }
         },
     );
@@ -311,6 +312,7 @@ fn register_sync(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let provider_filter = input
                     .get("provider")
                     .and_then(|v| v.as_str())
@@ -354,11 +356,11 @@ fn register_sync(iii: &III, kv: &StateKV) {
                     }
                 }
 
-                Ok(json!({
+                Ok(api_response(json!({
                     "synced": synced_count,
                     "providers": sync_statuses,
                     "timestamp": Utc::now().to_rfc3339()
-                }))
+                })))
             }
         },
     );
@@ -371,6 +373,7 @@ fn register_get(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let input = extract_input(input);
                 let model_id = require_str(&input, "model_id")?;
 
                 let stored: Vec<ModelInfo> = kv.list("model_info").await.map_err(kv_err)?;
@@ -384,14 +387,14 @@ fn register_get(iii: &III, kv: &StateKV) {
                 let model = all_models.iter().find(|m| m.id == model_id).cloned();
 
                 match model {
-                    Some(m) => Ok(json!({
+                    Some(m) => Ok(api_response(json!({
                         "model": m,
                         "cost_example": {
                             "1k_input_1k_output": m.calculate_cost(1000, 1000),
                             "10k_input_4k_output": m.calculate_cost(10_000, 4_000),
                             "100k_input_8k_output": m.calculate_cost(100_000, 8_000),
                         }
-                    })),
+                    }))),
                     None => Err(iii_sdk::IIIError::Handler(format!(
                         "model not found: {}",
                         model_id
