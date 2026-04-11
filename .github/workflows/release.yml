@@ -156,13 +156,14 @@ jobs:
         run: cargo build --release -p rimuru-core -p rimuru-cli -p rimuru-tui
 
       - name: Create zip
+        shell: pwsh
         run: |
-          mkdir dist
-          copy target\release\rimuru-worker.exe dist\
-          copy target\release\rimuru.exe dist\
-          copy target\release\rimuru-tui.exe dist\
-          copy README.md dist\ 2>/dev/null || echo .
-          copy LICENSE dist\ 2>/dev/null || echo .
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target\release\rimuru-worker.exe dist\
+          Copy-Item target\release\rimuru.exe dist\
+          Copy-Item target\release\rimuru-tui.exe dist\
+          if (Test-Path README.md) { Copy-Item README.md dist\ }
+          if (Test-Path LICENSE) { Copy-Item LICENSE dist\ }
           Compress-Archive -Path dist\* -DestinationPath rimuru-${{ needs.create-release.outputs.version }}-windows-x64.zip
 
       - name: Upload release asset
@@ -197,7 +198,7 @@ jobs:
 
       - name: Build Tauri app
         working-directory: crates/rimuru-desktop
-        run: npx @tauri-apps/cli build -- --bundles appimage
+        run: npx @tauri-apps/cli build --bundle appimage
 
       - name: Upload AppImage
         uses: softprops/action-gh-release@v2
@@ -226,7 +227,7 @@ jobs:
 
       - name: Build Tauri app
         working-directory: crates/rimuru-desktop
-        run: npx @tauri-apps/cli build -- --bundles dmg
+        run: npx @tauri-apps/cli build --bundle dmg
 
       - name: Upload DMG
         uses: softprops/action-gh-release@v2
@@ -266,7 +267,6 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/rimuru
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
