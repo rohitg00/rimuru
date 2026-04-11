@@ -19,26 +19,26 @@ interface ProxyStat {
 }
 
 export default function McpProxy() {
-  const { data: tools } = useQuery<ProxyTool[]>("/mcp/proxy/tools", 10000);
-  const { data: stats } = useQuery<ProxyStat[]>("/mcp/proxy/stats", 10000);
+  const { data: tools } = useQuery<{ tools: ProxyTool[]; total: number; total_schema_tokens: number }>("/mcp/proxy/tools", 10000);
+  const { data: stats } = useQuery<{ tools: ProxyStat[]; total_calls: number; total_input_tokens: number; total_output_tokens: number; cache_hit_rate: number }>("/mcp/proxy/stats", 10000);
 
   const connectedServers = useMemo(
-    () => new Set((tools ?? []).map((t) => t.server)).size,
+    () => new Set((tools?.tools ?? []).map((t) => t.server)).size,
     [tools],
   );
 
-  const totalTools = (tools ?? []).length;
+  const totalTools = (tools?.tools ?? []).length;
 
   const totalCalls = useMemo(
-    () => (stats ?? []).reduce((sum, s) => sum + s.calls, 0),
+    () => (stats?.tools ?? []).reduce((sum, s) => sum + s.calls, 0),
     [stats],
   );
 
   const cacheHitRate = useMemo(() => {
-    const rows = stats ?? [];
+    const rows = stats?.tools ?? [];
     if (rows.length === 0) return 0;
-    const totalHits = rows.reduce((sum, s) => sum + s.cache_hits, 0);
-    const total = rows.reduce((sum, s) => sum + s.calls, 0);
+    const totalHits = rows.reduce((sum: number, s: ProxyStat) => sum + s.cache_hits, 0);
+    const total = rows.reduce((sum: number, s: ProxyStat) => sum + s.calls, 0);
     if (total === 0) return 0;
     return (totalHits / total) * 100;
   }, [stats]);
@@ -93,7 +93,7 @@ export default function McpProxy() {
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
           Tools
         </h3>
-        {(tools ?? []).length === 0 ? (
+        {(tools?.tools ?? []).length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)] text-center py-8">
             No tools discovered yet
           </p>
@@ -117,7 +117,7 @@ export default function McpProxy() {
                 </tr>
               </thead>
               <tbody>
-                {(tools ?? []).map((row) => (
+                {(tools?.tools ?? []).map((row) => (
                   <tr
                     key={`${row.server}-${row.name}`}
                     className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
@@ -146,7 +146,7 @@ export default function McpProxy() {
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
           Usage Stats
         </h3>
-        {(stats ?? []).length === 0 ? (
+        {(stats?.tools ?? []).length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)] text-center py-8">
             No usage stats yet
           </p>
@@ -176,7 +176,7 @@ export default function McpProxy() {
                 </tr>
               </thead>
               <tbody>
-                {(stats ?? []).map((row) => (
+                {(stats?.tools ?? []).map((row) => (
                   <tr
                     key={row.tool}
                     className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"

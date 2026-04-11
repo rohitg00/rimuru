@@ -21,20 +21,20 @@ interface WasteRecord {
 }
 
 export default function Context() {
-  const { data: utilization } = useQuery<UtilizationRecord[]>(
+  const { data: utilization } = useQuery<{ utilizations: UtilizationRecord[]; total_active: number; threshold_percent: number }>(
     "/context/utilization",
     10000,
   );
-  const { data: waste } = useQuery<WasteRecord[]>("/context/waste", 10000);
+  const { data: waste } = useQuery<{ sessions: WasteRecord[]; total_waste_tokens: number; total_sessions_analyzed: number }>("/context/waste", 10000);
 
   const sessionsAnalyzed = useMemo(
-    () => new Set([...(utilization ?? []).map((u) => u.session_id), ...(waste ?? []).map((w) => w.session_id)]).size,
+    () => new Set([...(utilization?.utilizations ?? []).map((u) => u.session_id), ...(waste?.sessions ?? []).map((w) => w.session_id)]).size,
     [utilization, waste],
   );
 
   const totalWasteTokens = useMemo(
     () =>
-      (waste ?? []).reduce(
+      (waste?.sessions ?? []).reduce(
         (sum, w) => sum + w.schema_tokens + w.bash_tokens + w.mcp_tokens,
         0,
       ),
@@ -42,7 +42,7 @@ export default function Context() {
   );
 
   const avgUtilization = useMemo(() => {
-    const rows = utilization ?? [];
+    const rows = utilization?.utilizations ?? [];
     if (rows.length === 0) return 0;
     return rows.reduce((sum, u) => sum + u.utilization_pct, 0) / rows.length;
   }, [utilization]);
@@ -95,7 +95,7 @@ export default function Context() {
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
           Context Utilization
         </h3>
-        {(utilization ?? []).length === 0 ? (
+        {(utilization?.utilizations ?? []).length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)] text-center py-8">
             No utilization data yet
           </p>
@@ -122,7 +122,7 @@ export default function Context() {
                 </tr>
               </thead>
               <tbody>
-                {(utilization ?? []).map((row) => (
+                {(utilization?.utilizations ?? []).map((row) => (
                   <tr
                     key={row.session_id}
                     className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
@@ -154,7 +154,7 @@ export default function Context() {
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
           Token Waste Analysis
         </h3>
-        {(waste ?? []).length === 0 ? (
+        {(waste?.sessions ?? []).length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)] text-center py-8">
             No waste data yet
           </p>
@@ -187,7 +187,7 @@ export default function Context() {
                 </tr>
               </thead>
               <tbody>
-                {(waste ?? []).map((row) => (
+                {(waste?.sessions ?? []).map((row) => (
                   <tr
                     key={row.session_id}
                     className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
