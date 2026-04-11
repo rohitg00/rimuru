@@ -138,8 +138,10 @@ fn register_tools_call(iii: &III, kv: &StateKV, proxy: Arc<RwLock<McpProxy>>) {
                     "server": result.server,
                     "input_tokens": result.input_tokens,
                     "output_tokens": result.output_tokens,
+                    "original_output_tokens": result.compression.as_ref().map(|c| c.original_tokens),
                     "cache_hit": result.cache_hit,
                     "latency_ms": result.latency_ms,
+                    "compression": result.compression,
                 })))
             }
         },

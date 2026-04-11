@@ -104,4 +104,6 @@ pub struct ToolMetrics {
     pub cache_misses: u64,
     pub avg_latency_ms: f64,
     pub last_called: Option<String>,
+    pub tokens_saved_by_compression: u64,
+    pub compression_count: u64,
 }

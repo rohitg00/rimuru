@@ -7,6 +7,7 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use super::client::McpClient;
+use super::compress::{self, CompressionStrategy};
 use super::types::*;
 use crate::error::RimuruError;
 use crate::state::StateKV;
@@ -222,6 +223,7 @@ impl McpProxy {
                     output_tokens,
                     true,
                     start.elapsed().as_millis() as f64,
+                    0,
                 )
                 .await;
                 return Ok(ToolCallResult {
@@ -231,6 +233,7 @@ impl McpProxy {
                     output_tokens,
                     cache_hit: true,
                     latency_ms: start.elapsed().as_millis() as f64,
+                    compression: None,
                 });
             }
         }
@@ -244,8 +247,34 @@ impl McpProxy {
 
         let mcp_result = client.tools_call(resolved_name, arguments).await?;
         let result_value = serde_json::to_value(&mcp_result).unwrap_or(json!(null));
-        let output_tokens = McpClient::estimate_tokens(&result_value);
+        let raw_output_tokens = McpClient::estimate_tokens(&result_value);
         let latency_ms = start.elapsed().as_millis() as f64;
+
+        let max_compress_tokens: u64 = 2000;
+        let (final_result, compression_info, final_output_tokens) =
+            if raw_output_tokens > max_compress_tokens {
+                let compressed = compress::compress(
+                    &result_value,
+                    CompressionStrategy::Auto,
+                    max_compress_tokens,
+                );
+                let info = CompressionInfo {
+                    strategy: compressed.strategy_used,
+                    original_tokens: compressed.original_tokens,
+                    compressed_tokens: compressed.compressed_tokens,
+                    savings_percent: compressed.savings_percent,
+                };
+                let tokens = compressed.compressed_tokens;
+                (compressed.compressed, Some(info), tokens)
+            } else {
+                (result_value, None, raw_output_tokens)
+            };
+
+        let tokens_saved = if let Some(ref info) = compression_info {
+            info.original_tokens.saturating_sub(info.compressed_tokens)
+        } else {
+            0
+        };
 
         {
             let mut cache = self.cache.write().await;
@@ -258,7 +287,7 @@ impl McpProxy {
                     cache.remove(&k);
                 }
             }
-            cache.insert(cache_key, (result_value.clone(), std::time::Instant::now()));
+            cache.insert(cache_key, (final_result.clone(), std::time::Instant::now()));
         }
 
         self.record_metrics(
@@ -266,19 +295,21 @@ impl McpProxy {
             resolved_name,
             &server_name,
             input_tokens,
-            output_tokens,
+            final_output_tokens,
             false,
             latency_ms,
+            tokens_saved,
         )
         .await;
 
         Ok(ToolCallResult {
-            result: result_value,
+            result: final_result,
             server: server_name,
             input_tokens,
-            output_tokens,
+            output_tokens: final_output_tokens,
             cache_hit: false,
             latency_ms,
+            compression: compression_info,
         })
     }
 
@@ -292,6 +323,7 @@ impl McpProxy {
         output_tokens: u64,
         cache_hit: bool,
         latency_ms: f64,
+        tokens_saved: u64,
     ) {
         let key = format!("{}::{}", server_name, tool_name);
         let mut metrics: ToolMetrics = kv
@@ -308,6 +340,10 @@ impl McpProxy {
             metrics.cache_hits += 1;
         } else {
             metrics.cache_misses += 1;
+        }
+        if tokens_saved > 0 {
+            metrics.tokens_saved_by_compression += tokens_saved;
+            metrics.compression_count += 1;
         }
         let n = metrics.call_count as f64;
         metrics.avg_latency_ms = ((metrics.avg_latency_ms * (n - 1.0)) + latency_ms) / n;
@@ -385,6 +421,15 @@ pub struct ToolCallResult {
     pub output_tokens: u64,
     pub cache_hit: bool,
     pub latency_ms: f64,
+    pub compression: Option<CompressionInfo>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CompressionInfo {
+    pub strategy: String,
+    pub original_tokens: u64,
+    pub compressed_tokens: u64,
+    pub savings_percent: f64,
 }
 
 fn sha256_short(input: &str) -> String {
