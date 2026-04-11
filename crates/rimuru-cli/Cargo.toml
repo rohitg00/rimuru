@@ -16,3 +16,6 @@ serde_json.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
 anyhow.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+serde_yaml = "0.9"

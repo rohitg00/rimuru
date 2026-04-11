@@ -2,6 +2,7 @@ pub mod agents;
 pub mod config;
 pub mod context;
 pub mod costs;
+pub mod guard;
 pub mod hardware;
 pub mod health;
 pub mod hooks;
@@ -29,6 +30,7 @@ pub fn register_all(iii: &III, kv: &StateKV) {
     context::register(iii, kv);
     sessions::register(iii, kv);
     costs::register(iii, kv);
+    guard::register(iii, kv);
     models::register(iii, kv);
     metrics::register(iii, kv);
     hooks::register(iii, kv);
