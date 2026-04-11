@@ -141,6 +141,8 @@ fn draw(f: &mut Frame, app: &App) {
         Tab::Costs => draw_costs(f, app, chunks[1]),
         Tab::Models => draw_models(f, app, chunks[1]),
         Tab::Advisor => draw_advisor(f, app, chunks[1]),
+        Tab::Context => draw_context(f, app, chunks[1]),
+        Tab::McpProxy => draw_mcp_proxy(f, app, chunks[1]),
         Tab::Hooks => draw_hooks(f, app, chunks[1]),
         Tab::Plugins => draw_plugins(f, app, chunks[1]),
         Tab::Mcp => draw_mcp(f, app, chunks[1]),
@@ -792,6 +794,182 @@ fn draw_advisor(f: &mut Frame, app: &App, area: Rect) {
                 ),
                 Style::default().fg(th.text),
             )),
+    );
+
+    f.render_widget(table, chunks[1]);
+}
+
+fn draw_context(f: &mut Frame, app: &App, area: Rect) {
+    let th = app.theme();
+
+    let utilization = Some(&app.context_utilization).filter(|v| !v.is_null());
+    let waste = Some(&app.context_waste).filter(|v| !v.is_null());
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(area);
+
+    let total_waste = waste
+        .and_then(|w| w.get("total_waste_tokens"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let analyzed = waste
+        .and_then(|w| w.get("total_sessions_analyzed"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
+    let info = Paragraph::new(format!(
+        " Context │ {} sessions analyzed │ {} waste tokens",
+        analyzed, total_waste
+    ))
+    .style(Style::default().fg(th.text))
+    .block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(Style::default().fg(th.border)),
+    );
+    f.render_widget(info, chunks[0]);
+
+    let rows: Vec<Row> = utilization
+        .and_then(|u| u.get("utilizations"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|u| {
+                    let sid = u.get("session_id").and_then(|v| v.as_str()).unwrap_or("?");
+                    let model = u.get("model").and_then(|v| v.as_str()).unwrap_or("?");
+                    let used = u.get("tokens_used").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let window = u
+                        .get("context_window_size")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    let pct = u
+                        .get("utilization_percent")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    let color = if pct > 80.0 {
+                        th.error
+                    } else if pct > 50.0 {
+                        th.warning
+                    } else {
+                        th.success
+                    };
+                    Row::new(vec![
+                        Cell::from(sid[..sid.len().min(8)].to_string()),
+                        Cell::from(model.to_string()),
+                        Cell::from(format!("{used}")),
+                        Cell::from(format!("{window}")),
+                        Cell::from(format!("{pct:.1}%")).style(Style::default().fg(color)),
+                    ])
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(10),
+            Constraint::Length(20),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(12),
+        ],
+    )
+    .header(
+        Row::new(vec!["Session", "Model", "Used", "Window", "Util %"])
+            .style(Style::default().fg(th.accent).add_modifier(Modifier::BOLD)),
+    )
+    .block(
+        Block::default()
+            .title(" Context Utilization ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border)),
+    );
+
+    f.render_widget(table, chunks[1]);
+}
+
+fn draw_mcp_proxy(f: &mut Frame, app: &App, area: Rect) {
+    let th = app.theme();
+
+    let stats = Some(&app.mcp_proxy_stats).filter(|v| !v.is_null());
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(area);
+
+    let total_calls = stats
+        .and_then(|s| s.get("total_calls"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let cache_rate = stats
+        .and_then(|s| s.get("cache_hit_rate"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+
+    let info = Paragraph::new(format!(
+        " MCP Proxy │ {} calls │ {:.1}% cache hit rate",
+        total_calls, cache_rate
+    ))
+    .style(Style::default().fg(th.text))
+    .block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(Style::default().fg(th.border)),
+    );
+    f.render_widget(info, chunks[0]);
+
+    let rows: Vec<Row> = stats
+        .and_then(|s| s.get("tools"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|t| {
+                    let name = t.get("tool").and_then(|v| v.as_str()).unwrap_or("?");
+                    let calls = t.get("calls").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let inp = t.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let out = t.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let hits = t.get("cache_hits").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let lat = t
+                        .get("avg_latency_ms")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    Row::new(vec![
+                        Cell::from(name.to_string()),
+                        Cell::from(format!("{calls}")),
+                        Cell::from(format!("{inp}")),
+                        Cell::from(format!("{out}")),
+                        Cell::from(format!("{hits}")),
+                        Cell::from(format!("{lat:.0}ms")),
+                    ])
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(25),
+            Constraint::Length(8),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(10),
+        ],
+    )
+    .header(
+        Row::new(vec!["Tool", "Calls", "Input", "Output", "Cache", "Latency"])
+            .style(Style::default().fg(th.accent).add_modifier(Modifier::BOLD)),
+    )
+    .block(
+        Block::default()
+            .title(" MCP Proxy Stats ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border)),
     );
 
     f.render_widget(table, chunks[1]);

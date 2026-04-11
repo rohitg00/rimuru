@@ -11,6 +11,8 @@ pub enum Tab {
     Costs,
     Models,
     Advisor,
+    Context,
+    McpProxy,
     Hooks,
     Plugins,
     Mcp,
@@ -26,6 +28,8 @@ impl Tab {
             Tab::Costs,
             Tab::Models,
             Tab::Advisor,
+            Tab::Context,
+            Tab::McpProxy,
             Tab::Hooks,
             Tab::Plugins,
             Tab::Mcp,
@@ -41,6 +45,8 @@ impl Tab {
             Tab::Costs => "Costs",
             Tab::Models => "Models",
             Tab::Advisor => "Advisor",
+            Tab::Context => "Context",
+            Tab::McpProxy => "MCP Proxy",
             Tab::Hooks => "Hooks",
             Tab::Plugins => "Plugins",
             Tab::Mcp => "MCP",
@@ -74,6 +80,9 @@ pub struct App {
     pub hooks: Vec<Value>,
     pub plugins: Vec<Value>,
     pub mcp_servers: Vec<Value>,
+    pub context_utilization: Value,
+    pub context_waste: Value,
+    pub mcp_proxy_stats: Value,
 
     catalog_summary_cache: (usize, usize, usize, usize),
 }
@@ -108,6 +117,9 @@ impl App {
             hooks: Vec::new(),
             plugins: Vec::new(),
             mcp_servers: Vec::new(),
+            context_utilization: Value::Null,
+            context_waste: Value::Null,
+            mcp_proxy_stats: Value::Null,
             catalog_summary_cache: (0, 0, 0, 0),
         }
     }
@@ -150,6 +162,18 @@ impl App {
             Tab::Costs => self.daily_costs.len(),
             Tab::Models => self.models.len(),
             Tab::Advisor => self.catalog.len(),
+            Tab::Context => self
+                .context_utilization
+                .get("utilizations")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0),
+            Tab::McpProxy => self
+                .mcp_proxy_stats
+                .get("tools")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0),
             Tab::Hooks => self.hooks.len(),
             Tab::Plugins => self.plugins.len(),
             Tab::Mcp => self.mcp_servers.len(),
@@ -261,6 +285,19 @@ impl App {
                             .unwrap_or(0) as usize;
                         self.catalog_summary_cache = (perfect, good, marginal, total);
                     }
+                }
+            }
+            Tab::Context => {
+                if let Some(v) = client.get("/context/utilization").await {
+                    self.context_utilization = v;
+                }
+                if let Some(v) = client.get("/context/waste").await {
+                    self.context_waste = v;
+                }
+            }
+            Tab::McpProxy => {
+                if let Some(v) = client.get("/mcp/proxy/stats").await {
+                    self.mcp_proxy_stats = v;
                 }
             }
             Tab::Hooks => {

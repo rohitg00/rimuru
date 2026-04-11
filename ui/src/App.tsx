@@ -14,6 +14,8 @@ import Hooks from "./pages/Hooks";
 import Settings from "./pages/Settings";
 import Terminal from "./pages/Terminal";
 import McpServers from "./pages/McpServers";
+import Context from "./pages/Context";
+import McpProxy from "./pages/McpProxy";
 import City from "./pages/City";
 import { applyTheme, getStoredTheme } from "./components/ThemeSwitcher";
 
@@ -28,6 +30,8 @@ const PAGES: Record<string, React.ComponentType> = {
   plugins: Plugins,
   hooks: Hooks,
   mcp: McpServers,
+  context: Context,
+  "mcp-proxy": McpProxy,
   city: City,
   settings: Settings,
   terminal: Terminal,
