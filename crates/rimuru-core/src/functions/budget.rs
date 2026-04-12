@@ -47,9 +47,7 @@ async fn compute_monthly_spent(kv: &StateKV) -> f64 {
     let records: Vec<CostRecord> = kv.list("cost_records").await.unwrap_or_default();
     records
         .iter()
-        .filter(|r| {
-            r.recorded_at.year() == now.year() && r.recorded_at.month() == now.month()
-        })
+        .filter(|r| r.recorded_at.year() == now.year() && r.recorded_at.month() == now.month())
         .map(|r| r.total_cost)
         .sum()
 }
@@ -240,8 +238,7 @@ fn register_status(iii: &III, kv: &StateKV) {
                     || (daily_limit > 0.0 && daily_spent >= daily_limit)
                 {
                     "exceeded"
-                } else if (monthly_limit > 0.0
-                    && monthly_spent >= monthly_limit * alert_threshold)
+                } else if (monthly_limit > 0.0 && monthly_spent >= monthly_limit * alert_threshold)
                     || (daily_limit > 0.0 && daily_spent >= daily_limit * alert_threshold)
                 {
                     "warning"
@@ -316,10 +313,7 @@ fn register_alerts(iii: &III, kv: &StateKV) {
             let kv = kv.clone();
             async move {
                 let input = extract_input(input);
-                let limit = input
-                    .get("limit")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(20) as usize;
+                let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
 
                 let mut alerts: Vec<BudgetAlert> =
                     kv.list("budget_alerts").await.map_err(kv_err)?;
