@@ -30,7 +30,7 @@
     <circle cx="0" cy="0" r="1.6" fill="#0369A1"/>
   </g>
   <text x="16" y="24" font-family="'SF Mono', Menlo, Consolas, 'Courier New', monospace" font-size="8" letter-spacing="1.6" fill="#475569">SKILL LVL</text>
-  <text x="16" y="54" font-family="Georgia, 'Crimson Text', 'Times New Roman', serif" font-style="italic" font-size="28" font-weight="700" fill="#06B6D4">45+</text>
-  <line x1="16" y1="60" x2="75" y2="60" stroke="#06B6D4" stroke-width="1.5"/>
+  <text x="16" y="54" font-family="Georgia, 'Crimson Text', 'Times New Roman', serif" font-style="italic" font-size="28" font-weight="700" fill="#06B6D4">46</text>
+  <line x1="16" y1="60" x2="58" y2="60" stroke="#06B6D4" stroke-width="1.5"/>
   <text x="16" y="73" font-family="'SF Mono', Menlo, Consolas, 'Courier New', monospace" font-size="9" letter-spacing="1.2" fill="#475569">HTTP ENDPOINTS</text>
 </svg>

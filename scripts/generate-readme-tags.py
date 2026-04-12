@@ -345,12 +345,12 @@ SECTIONS = [
 ]
 
 STATS = [
-    ("agents", "8", "agents tracked", "glow"),
+    ("agents", "6", "agents tracked", "glow"),
     ("functions", "60+", "iii functions", "glow"),
     ("interfaces", "4", "interfaces", "purple"),
     ("caps", "4", "budget cap levels", "glow"),
     ("strategies", "6", "compression modes", "purple"),
-    ("endpoints", "45+", "http endpoints", "glow"),
+    ("endpoints", "46", "http endpoints", "glow"),
 ]
 
 PILLS = [

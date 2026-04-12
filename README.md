@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-agents.svg"><img src="docs/assets/tags/stat-agents.svg" alt="8 agents tracked" height="80" /></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-agents.svg"><img src="docs/assets/tags/stat-agents.svg" alt="6 agents tracked" height="80" /></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-functions.svg"><img src="docs/assets/tags/stat-functions.svg" alt="60+ iii functions" height="80" /></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-interfaces.svg"><img src="docs/assets/tags/stat-interfaces.svg" alt="4 interfaces" height="80" /></picture>
 </p>
@@ -25,7 +25,7 @@
 <p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-caps.svg"><img src="docs/assets/tags/stat-caps.svg" alt="4 budget cap levels" height="80" /></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-strategies.svg"><img src="docs/assets/tags/stat-strategies.svg" alt="6 compression modes" height="80" /></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-endpoints.svg"><img src="docs/assets/tags/stat-endpoints.svg" alt="45+ http endpoints" height="80" /></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/stat-endpoints.svg"><img src="docs/assets/tags/stat-endpoints.svg" alt="46 http endpoints" height="80" /></picture>
 </p>
 
 <p align="center">
@@ -61,7 +61,7 @@
 
 > *Notice. Subject is running four concurrent agents. Projected monthly spend exceeds threshold by 182%. Recommending immediate containment.*
 
-One developer. Four agents running in parallel. Claude Code in one terminal, Cursor open in the IDE, Codex piped into a script, Copilot silently billing by the token. The invoice lands at the end of the month and it is already too late.
+One developer. Six agents running in parallel. Claude Code in one terminal, Cursor open in the IDE, Codex piped into a script, Copilot silently billing by the token. The invoice lands at the end of the month and it is already too late.
 
 Rimuru is the control plane between you and that bill. It discovers every agent on your machine, tracks spend in real time, enforces hard caps before the write hits state, detects runaway loops before they finish burning, wraps processes with a kill switch, and compresses tool output so context windows stop bleeding tokens. One engine. Four interfaces. Zero external dependencies -- no Postgres, no Redis, no Docker.
 
@@ -101,7 +101,7 @@ Other platforms: [pre-built binaries](https://github.com/rohitg00/rimuru/release
 
 <h2 id="agents"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/section-agents.svg"><img src="docs/assets/tags/section-agents.svg" alt="Notice 002 - Works With Every Agent" height="64" /></picture></h2>
 
-> *Scanning filesystem. Eight tools detected. Session histories indexed.*
+> *Scanning filesystem. Six tools detected. Session histories indexed.*
 
 Rimuru auto-discovers agents from their local config directories. No token swap, no auth dance, no proxy -- it reads session history the way each tool writes it.
 
@@ -140,7 +140,7 @@ Rimuru auto-discovers agents from their local config directories. No token swap,
 </tr>
 </table>
 
-Model pricing is maintained for 8 models across 5 providers. Cost records are idempotent -- re-syncing the same session overwrites rather than duplicates.
+Model pricing is maintained for 8 models across 5 providers. Six agent adapters ship in-tree. Cost records are idempotent -- re-syncing the same session overwrites rather than duplicates.
 
 <br/>
 
@@ -165,7 +165,7 @@ rimuru config set budget_action block
 | `budget_session`         | `0.0`    | Spend attributed to a single `session_id`                |
 | `budget_daily_agent`     | `0.0`    | Per-agent spend for today                                |
 | `budget_alert_threshold` | `0.8`    | Warning fires at this fraction of any cap                |
-| `budget_action`          | `alert`  | `alert` (log + hook) or `block` (reject the record)      |
+| `budget_action`          | `alert`  | `alert` (log + hook), `warn` (log only), or `block` (reject the record) |
 
 Status projects end-of-month spend from the current daily rate against the actual days in this month.
 
@@ -287,7 +287,7 @@ rimuru models advisor
 
 <h2 id="architecture"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/section-architecture.svg"><img src="docs/assets/tags/section-architecture.svg" alt="Notice 009 Rank S - Architecture - Worker, function, trigger" height="64" /></picture></h2>
 
-```
+```text
                        iii Engine  (WS :49134)
                               │
          ┌────────────────────┼────────────────────┐
@@ -314,28 +314,38 @@ State lives in the engine's in-memory KV under scoped namespaces: `agents`, `ses
 
 <h2 id="api"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/tags/light/section-api.svg"><img src="docs/assets/tags/section-api.svg" alt="Notice 010 Rank A - API Reference" height="64" /></picture></h2>
 
-Two call paths. Same functions.
+Two call paths. Overlapping but not identical surfaces.
 
-- **HTTP** via `iii-http` on `:3111` -- `POST /api/budget/check`, `GET /api/agents`, etc. Payloads are normalized by `extract_input()` so path params, query params, and bodies merge into one `Value`.
-- **Direct trigger** via the iii WebSocket -- `iii.trigger(TriggerRequest { function_id: "rimuru.budget.check", ... })`. This is what the CLI uses.
+- **HTTP** via `iii-http` on `:3111` -- registered from the central route table in [`crates/rimuru-core/src/triggers/api.rs`](crates/rimuru-core/src/triggers/api.rs). Payloads are normalized by `extract_input()` so path params, query params, and bodies merge into one `Value`.
+- **Direct trigger** via the iii WebSocket -- `iii.trigger(TriggerRequest { function_id: "rimuru.budget.check", ... })`. This is what the CLI uses and the only way to reach the guardrail functions below.
+
+The HTTP layer covers the public read/write surface: agents, sessions, costs, context, models, advisor, metrics, health, MCP proxy, hooks, plugins, and config. The v0.4.0 guardrails (budget engine, runaway detection, guard wrapper) are registered as iii functions but have no HTTP binding yet -- call them via `iii.trigger()`.
 
 Function namespaces:
 
-```
-rimuru.agents.*       list, get, create, update, delete, status, detect, connect, disconnect, sync
-rimuru.sessions.*     list, get, active, history, cleanup
-rimuru.costs.*        record, summary, daily, by_agent, daily_rollup
+```text
+# HTTP + direct trigger
+rimuru.agents.*       list, get, create, connect, disconnect, detect   (plus update/delete/status/sync via trigger)
+rimuru.sessions.*     list, get, active, history                       (plus cleanup via trigger)
+rimuru.costs.*        summary, daily, by_agent, record                 (plus daily_rollup via trigger)
+rimuru.hardware.*     get, detect
+rimuru.models.*       list, get, sync
+rimuru.advisor.*      assess, catalog
+rimuru.metrics.*      current, history
+rimuru.context.*      breakdown, breakdown_by_session, utilization, waste
+rimuru.mcp.proxy.*    connect, tools, call, search, stats, disconnect
+rimuru.hooks.*        register, dispatch
+rimuru.plugins.*      install, uninstall, start, stop
+rimuru.config.*       get, set
+rimuru.health.*       check
+
+# iii-trigger only (no HTTP route)
 rimuru.budget.*       check, status, set, alerts
 rimuru.runaway.*      analyze, scan, configure
 rimuru.guard.*        register, complete, list, history
-rimuru.mcp.proxy.*    connect, tools, call, search, stats, disconnect
-rimuru.context.*      breakdown, breakdown_by_session, utilization, waste
-rimuru.models.*       list, get, sync, advisor, catalog
-rimuru.hooks.*        register, list, dispatch
-rimuru.config.*       get, set
 ```
 
-Full HTTP endpoint list is in [`docs/api.md`](docs/api.md).
+Full HTTP endpoint list with methods and paths is in [`docs/api.md`](docs/api.md).
 
 <br/>
 
