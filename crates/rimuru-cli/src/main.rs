@@ -89,6 +89,12 @@ enum Commands {
         action: ConfigAction,
     },
 
+    #[command(about = "Cost limit wrapper for agent processes")]
+    Guard {
+        #[command(subcommand)]
+        action: GuardAction,
+    },
+
     #[command(about = "Health check")]
     Health,
 
@@ -237,6 +243,23 @@ enum ConfigAction {
     Set { key: String, value: String },
 }
 
+#[derive(Subcommand)]
+enum GuardAction {
+    #[command(about = "Start a guarded process")]
+    Start {
+        #[arg(long, value_parser = commands::guard::validate_limit)]
+        limit: f64,
+        #[arg(long, value_enum, default_value_t = commands::guard::GuardActionMode::Warn)]
+        action: commands::guard::GuardActionMode,
+        #[arg(trailing_var_arg = true, required = true)]
+        command: Vec<String>,
+    },
+    #[command(about = "Show active guarded processes")]
+    Status,
+    #[command(about = "Show guard history")]
+    History,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -359,6 +382,16 @@ async fn main() -> Result<()> {
             ConfigAction::Set { key, value } => {
                 commands::config::set(&iii, &key, &value, format).await
             }
+        },
+
+        Commands::Guard { action } => match action {
+            GuardAction::Start {
+                limit,
+                action,
+                command,
+            } => commands::guard::start(&iii, limit, action, &command, format).await,
+            GuardAction::Status => commands::guard::status(&iii, format).await,
+            GuardAction::History => commands::guard::history(&iii, format).await,
         },
 
         Commands::Health => commands::health::check(&iii, format).await,
