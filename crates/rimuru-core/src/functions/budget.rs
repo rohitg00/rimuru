@@ -129,23 +129,25 @@ fn register_check(iii: &III, kv: &StateKV) {
                 let monthly_spent = compute_monthly_spent(&kv).await? + pending_cost;
                 let daily_spent = compute_daily_spent(&kv).await? + pending_cost;
 
-                let session_spent: Option<f64> = if let Some(session_id_str) =
-                    input.get("session_id").and_then(|v| v.as_str())
-                    && let Ok(session_id) = session_id_str.parse::<Uuid>()
-                {
-                    Some(compute_session_spent(&kv, session_id).await? + pending_cost)
-                } else {
-                    None
-                };
+                let session_spent: Option<f64> =
+                    if let Some(sid) = input.get("session_id").and_then(|v| v.as_str()) {
+                        let parsed = sid
+                            .parse::<Uuid>()
+                            .map_err(|e| IIIError::Handler(format!("invalid session_id: {}", e)))?;
+                        Some(compute_session_spent(&kv, parsed).await? + pending_cost)
+                    } else {
+                        None
+                    };
 
-                let agent_daily_spent: Option<f64> = if let Some(agent_id_str) =
-                    input.get("agent_id").and_then(|v| v.as_str())
-                    && let Ok(agent_id) = agent_id_str.parse::<Uuid>()
-                {
-                    Some(compute_agent_daily_spent(&kv, agent_id).await? + pending_cost)
-                } else {
-                    None
-                };
+                let agent_daily_spent: Option<f64> =
+                    if let Some(aid) = input.get("agent_id").and_then(|v| v.as_str()) {
+                        let parsed = aid
+                            .parse::<Uuid>()
+                            .map_err(|e| IIIError::Handler(format!("invalid agent_id: {}", e)))?;
+                        Some(compute_agent_daily_spent(&kv, parsed).await? + pending_cost)
+                    } else {
+                        None
+                    };
 
                 let mut status = "ok".to_string();
                 let mut warnings: Vec<String> = Vec::new();
@@ -202,8 +204,14 @@ fn register_check(iii: &III, kv: &StateKV) {
                         },
                     };
 
-                    let alert_key = format!("alert_{}", Utc::now().timestamp_millis());
-                    let _ = kv.set("budget_alerts", &alert_key, &alert).await;
+                    let alert_key = format!(
+                        "alert_{}_{}",
+                        Utc::now().timestamp_millis(),
+                        Uuid::new_v4().simple()
+                    );
+                    if let Err(e) = kv.set("budget_alerts", &alert_key, &alert).await {
+                        tracing::warn!("failed to persist budget alert: {}", e);
+                    }
 
                     let event_type = if exceeded {
                         "budget.exceeded"
@@ -256,6 +264,7 @@ fn register_status(iii: &III, kv: &StateKV) {
                 let monthly_limit = get_config_f64(&kv, "budget_monthly", 0.0).await?;
                 let daily_limit = get_config_f64(&kv, "budget_daily", 0.0).await?;
                 let session_limit = get_config_f64(&kv, "budget_session", 0.0).await?;
+                let agent_daily_limit = get_config_f64(&kv, "budget_daily_agent", 0.0).await?;
                 let alert_threshold = get_config_f64(&kv, "budget_alert_threshold", 0.8).await?;
                 let action = get_config_str(&kv, "budget_action", "alert").await?;
 
@@ -264,12 +273,13 @@ fn register_status(iii: &III, kv: &StateKV) {
 
                 let now = Utc::now();
                 let day_of_month = now.day() as f64;
+                let days_this_month = days_in_month(now.year(), now.month()) as f64;
                 let burn_rate_daily = if day_of_month > 0.0 {
                     monthly_spent / day_of_month
                 } else {
                     0.0
                 };
-                let projected_monthly = burn_rate_daily * 30.0;
+                let projected_monthly = burn_rate_daily * days_this_month;
 
                 let monthly_remaining = if monthly_limit > 0.0 {
                     (monthly_limit - monthly_spent).max(0.0)
@@ -303,11 +313,14 @@ fn register_status(iii: &III, kv: &StateKV) {
                     "daily_spent": daily_spent,
                     "daily_remaining": daily_remaining,
                     "session_limit": session_limit,
+                    "agent_daily_limit": agent_daily_limit,
                     "alert_threshold": alert_threshold,
                     "action_on_exceed": action,
                     "status": status,
+                    "status_scope": "global",
                     "burn_rate_daily": burn_rate_daily,
-                    "projected_monthly": projected_monthly
+                    "projected_monthly": projected_monthly,
+                    "days_in_month": days_this_month
                 })))
             }
         },
