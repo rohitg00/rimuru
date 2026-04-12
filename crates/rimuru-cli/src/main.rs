@@ -247,10 +247,10 @@ enum ConfigAction {
 enum GuardAction {
     #[command(about = "Start a guarded process")]
     Start {
-        #[arg(long)]
+        #[arg(long, value_parser = commands::guard::validate_limit)]
         limit: f64,
-        #[arg(long, default_value = "warn")]
-        action: String,
+        #[arg(long, value_enum, default_value_t = commands::guard::GuardActionMode::Warn)]
+        action: commands::guard::GuardActionMode,
         #[arg(trailing_var_arg = true, required = true)]
         command: Vec<String>,
     },
@@ -389,7 +389,7 @@ async fn main() -> Result<()> {
                 limit,
                 action,
                 command,
-            } => commands::guard::start(&iii, limit, &action, &command, format).await,
+            } => commands::guard::start(&iii, limit, action, &command, format).await,
             GuardAction::Status => commands::guard::status(&iii, format).await,
             GuardAction::History => commands::guard::history(&iii, format).await,
         },

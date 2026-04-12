@@ -7,10 +7,36 @@ use serde_json::json;
 
 use crate::output::{self, OutputFormat};
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum GuardActionMode {
+    Kill,
+    Warn,
+}
+
+impl GuardActionMode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            GuardActionMode::Kill => "kill",
+            GuardActionMode::Warn => "warn",
+        }
+    }
+}
+
+pub fn validate_limit(s: &str) -> Result<f64, String> {
+    let n: f64 = s.parse().map_err(|_| format!("invalid number: {}", s))?;
+    if n.is_nan() || !n.is_finite() {
+        return Err("limit must be a finite number".to_string());
+    }
+    if n <= 0.0 {
+        return Err("limit must be > 0".to_string());
+    }
+    Ok(n)
+}
+
 pub async fn start(
     iii: &III,
     limit: f64,
-    action: &str,
+    action: GuardActionMode,
     command: &[String],
     _format: &OutputFormat,
 ) -> Result<()> {
@@ -22,42 +48,51 @@ pub async fn start(
     let command_str = command.join(" ");
     let started_at = chrono::Utc::now().to_rfc3339();
 
-    iii.trigger(TriggerRequest {
-        function_id: "rimuru.guard.register".to_string(),
-        payload: json!({
-            "id": guard_id,
-            "command": command_str,
-            "limit": limit,
-            "action": action,
-            "started_at": started_at
-        }),
-        action: None,
-        timeout_ms: None,
-    })
-    .await?;
-
-    println!("Guard started: {}", &guard_id[..8]);
-    println!("  Limit: ${:.2} | Action: {}", limit, action);
-    println!("  Running: {}", command_str);
-    println!();
-
     let mut child = tokio::process::Command::new(&command[0])
         .args(&command[1..])
         .spawn()?;
+    let pid = child.id().unwrap_or(0) as i64;
+
+    let register_result = iii
+        .trigger(TriggerRequest {
+            function_id: "rimuru.guard.register".to_string(),
+            payload: json!({
+                "id": guard_id,
+                "command": command_str,
+                "limit": limit,
+                "action": action.as_str(),
+                "started_at": started_at,
+                "pid": pid
+            }),
+            action: None,
+            timeout_ms: None,
+        })
+        .await;
+
+    if let Err(e) = register_result {
+        let _ = child.kill().await;
+        anyhow::bail!("failed to register guard: {}", e);
+    }
+
+    eprintln!("Guard started: {}", &guard_id[..8]);
+    eprintln!("  PID: {}", pid);
+    eprintln!("  Limit: ${:.2} | Action: {}", limit, action.as_str());
+    eprintln!("  Running: {}", command_str);
+    eprintln!();
 
     let mut action_taken = "none".to_string();
     let mut warned = false;
-    let mut total_cost = 0.0_f64;
+    let mut current_cost = 0.0_f64;
 
     loop {
         tokio::select! {
             exit_status = child.wait() => {
                 match exit_status {
                     Ok(status) => {
-                        println!("\nProcess exited with status: {}", status);
+                        eprintln!("\nProcess exited with status: {}", status);
                     }
                     Err(e) => {
-                        println!("\nProcess error: {}", e);
+                        eprintln!("\nProcess error: {}", e);
                     }
                 }
                 break;
@@ -65,30 +100,35 @@ pub async fn start(
             _ = tokio::time::sleep(Duration::from_secs(5)) => {
                 let cost_result = iii.trigger(TriggerRequest {
                     function_id: "rimuru.costs.summary".to_string(),
-                    payload: json!({}),
+                    payload: json!({"since": started_at}),
                     action: None,
                     timeout_ms: Some(10_000),
                 }).await;
 
                 if let Ok(result) = cost_result {
                     let body = output::unwrap_body(result);
-                    total_cost = body
+                    current_cost = body
                         .get("summary")
                         .and_then(|s| s.get("total_cost"))
                         .and_then(|v| v.as_f64())
-                        .unwrap_or(total_cost);
+                        .unwrap_or(current_cost);
                 }
 
-                if total_cost >= limit {
-                    if action == "kill" {
-                        println!("\n[GUARD] Cost ${:.2} exceeded limit ${:.2} — killing process", total_cost, limit);
-                        let _ = child.kill().await;
-                        action_taken = "killed".to_string();
-                        break;
-                    } else if !warned {
-                        println!("\n[GUARD] Warning: cost ${:.2} exceeded limit ${:.2}", total_cost, limit);
-                        action_taken = "warned".to_string();
-                        warned = true;
+                if current_cost >= limit {
+                    match action {
+                        GuardActionMode::Kill => {
+                            eprintln!("\n[GUARD] Cost ${:.2} exceeded limit ${:.2} — killing process", current_cost, limit);
+                            let _ = child.kill().await;
+                            action_taken = "killed".to_string();
+                            break;
+                        }
+                        GuardActionMode::Warn => {
+                            if !warned {
+                                eprintln!("\n[GUARD] Warning: cost ${:.2} exceeded limit ${:.2}", current_cost, limit);
+                                action_taken = "warned".to_string();
+                                warned = true;
+                            }
+                        }
                     }
                 }
             }
@@ -102,7 +142,7 @@ pub async fn start(
             function_id: "rimuru.guard.complete".to_string(),
             payload: json!({
                 "id": guard_id,
-                "final_cost": total_cost,
+                "final_cost": current_cost,
                 "action_taken": action_taken,
                 "ended_at": ended_at
             }),
@@ -111,12 +151,12 @@ pub async fn start(
         })
         .await;
 
-    println!();
-    println!("Guard summary:");
-    println!("  ID: {}", &guard_id[..8]);
-    println!("  Final cost: ${:.2}", total_cost);
-    println!("  Limit: ${:.2}", limit);
-    println!("  Action taken: {}", action_taken);
+    eprintln!();
+    eprintln!("Guard summary:");
+    eprintln!("  ID: {}", &guard_id[..8]);
+    eprintln!("  Final cost: ${:.2}", current_cost);
+    eprintln!("  Limit: ${:.2}", limit);
+    eprintln!("  Action taken: {}", action_taken);
 
     Ok(())
 }
@@ -155,6 +195,7 @@ pub async fn status(iii: &III, format: &OutputFormat) -> Result<()> {
             table.set_content_arrangement(ContentArrangement::Dynamic);
             table.set_header(vec![
                 Cell::new("ID").fg(Color::Cyan),
+                Cell::new("PID").fg(Color::Cyan),
                 Cell::new("Command").fg(Color::Cyan),
                 Cell::new("Limit").fg(Color::Cyan),
                 Cell::new("Current").fg(Color::Cyan),
@@ -167,6 +208,7 @@ pub async fn status(iii: &III, format: &OutputFormat) -> Result<()> {
                 let short_id = if id.len() > 8 { &id[..8] } else { id };
                 table.add_row(vec![
                     Cell::new(short_id),
+                    Cell::new(guard.get("pid").and_then(|v| v.as_i64()).unwrap_or(0)),
                     Cell::new(guard.get("command").and_then(|v| v.as_str()).unwrap_or("")),
                     Cell::new(format!(
                         "${:.2}",

@@ -13,6 +13,8 @@ struct GuardRecord {
     action: String,
     started_at: String,
     current_cost: f64,
+    #[serde(default)]
+    pid: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +52,7 @@ fn register_register(iii: &III, kv: &StateKV) {
                     .unwrap_or("warn")
                     .to_string();
                 let started_at = require_str(&input, "started_at")?;
+                let pid = input.get("pid").and_then(|v| v.as_i64()).unwrap_or(0);
 
                 let record = GuardRecord {
                     id: id.clone(),
@@ -58,6 +61,7 @@ fn register_register(iii: &III, kv: &StateKV) {
                     action,
                     started_at,
                     current_cost: 0.0,
+                    pid,
                 };
 
                 kv.set("guards", &id, &record).await.map_err(kv_err)?;
@@ -107,10 +111,10 @@ fn register_complete(iii: &III, kv: &StateKV) {
                     ended_at,
                 };
 
-                kv.delete("guards", &id).await.map_err(kv_err)?;
                 kv.set("guard_history", &id, &history)
                     .await
                     .map_err(kv_err)?;
+                kv.delete("guards", &id).await.map_err(kv_err)?;
 
                 Ok(api_response(json!({
                     "history": history,
