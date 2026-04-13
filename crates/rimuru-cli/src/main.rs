@@ -95,6 +95,16 @@ enum Commands {
         action: GuardAction,
     },
 
+    #[command(about = "Compress stdin output before piping to an agent")]
+    Slim {
+        #[arg(long, value_enum, default_value_t = commands::slim::SlimStrategy::Auto)]
+        strategy: commands::slim::SlimStrategy,
+        #[arg(long, default_value_t = 2000)]
+        max_tokens: u64,
+        #[arg(long, help = "Print compression stats to stderr")]
+        stats: bool,
+    },
+
     #[command(about = "Health check")]
     Health,
 
@@ -269,6 +279,15 @@ async fn main() -> Result<()> {
         return open_ui(*port);
     }
 
+    if let Commands::Slim {
+        strategy,
+        max_tokens,
+        stats,
+    } = cli.command
+    {
+        return commands::slim::run(strategy, max_tokens, stats);
+    }
+
     let iii = register_worker(&cli.engine_url, InitOptions::default());
 
     for _ in 0..20 {
@@ -397,6 +416,7 @@ async fn main() -> Result<()> {
         Commands::Health => commands::health::check(&iii, format).await,
 
         Commands::Ui { .. } => unreachable!(),
+        Commands::Slim { .. } => unreachable!(),
     };
 
     iii.shutdown_async().await;
