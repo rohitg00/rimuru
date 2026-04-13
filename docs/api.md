@@ -147,9 +147,11 @@ The HTTP layer exposes the **public surface**: agents, sessions, costs, context,
 A handful of registered iii functions are not exposed over HTTP because they're internal:
 
 ```text
-rimuru.costs.*        record (POST /api/costs), daily_rollup
+rimuru.costs.*        daily_rollup
 rimuru.agents.*       update, delete, status, sync
 rimuru.sessions.*     cleanup
 ```
+
+(`rimuru.costs.record` is available at `POST /api/costs` -- see the Costs table above.)
 
 To expose any of these over HTTP, add a `Route` entry in `crates/rimuru-core/src/triggers/api.rs` -- they are already registered as iii functions, so the route just needs the HTTP binding.
