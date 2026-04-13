@@ -8,7 +8,7 @@ Every handler returns `api_response(data)` which wraps the payload as `{"status_
 
 ## HTTP vs iii trigger
 
-The HTTP layer exposes the **public surface**: agents, sessions, costs, context, models, advisor, metrics, health, MCP proxy, hooks, plugins, and config. The **v0.4.0 guardrail features** (budget engine, runaway detection, guard wrapper) are registered as iii functions but have **no HTTP binding** -- invoke them via `iii.trigger(TriggerRequest { function_id: "rimuru.budget.check", ... })` directly or through the CLI. See [function namespaces in the README](../README.md#api).
+The HTTP layer exposes the **public surface**: agents, sessions, costs, context, models, advisor, metrics, health, MCP proxy, hooks, plugins, config, **budget**, **runaway**, and **guard**. The CLI calls all of these via `iii.trigger()` directly to skip the HTTP hop, but external clients can use the HTTP routes documented below. See [function namespaces in the README](../README.md#api).
 
 ## Agents
 
@@ -115,15 +115,39 @@ The HTTP layer exposes the **public surface**: agents, sessions, costs, context,
 |--------|------|----------|
 | GET    | `/api/health`   | `rimuru.health.check` |
 
+## Budget (v0.4.0)
+
+| Method | Path | Function |
+|--------|------|----------|
+| POST   | `/api/budget/check`    | `rimuru.budget.check`  |
+| GET    | `/api/budget/status`   | `rimuru.budget.status` |
+| POST   | `/api/budget/set`      | `rimuru.budget.set`    |
+| GET    | `/api/budget/alerts`   | `rimuru.budget.alerts` |
+
+## Runaway (v0.4.0)
+
+| Method | Path | Function |
+|--------|------|----------|
+| POST   | `/api/runaway/analyze`     | `rimuru.runaway.analyze`   |
+| GET    | `/api/runaway/scan`        | `rimuru.runaway.scan`      |
+| GET    | `/api/runaway/configure`   | `rimuru.runaway.configure` (read) |
+| POST   | `/api/runaway/configure`   | `rimuru.runaway.configure` (write) |
+
+## Guard (v0.4.0)
+
+| Method | Path | Function |
+|--------|------|----------|
+| GET    | `/api/guard`            | `rimuru.guard.list`     |
+| POST   | `/api/guard/register`   | `rimuru.guard.register` |
+| POST   | `/api/guard/complete`   | `rimuru.guard.complete` |
+| GET    | `/api/guard/history`    | `rimuru.guard.history`  |
+
 ## iii-trigger-only functions (no HTTP route)
 
-These functions are registered on the iii engine but not exposed over HTTP. Call them directly via `iii.trigger(...)` from a connected worker or through the CLI.
+A handful of registered iii functions are not exposed over HTTP because they're internal:
 
 ```text
-rimuru.budget.*       check, status, set, alerts
-rimuru.runaway.*      analyze, scan, configure
-rimuru.guard.*        register, complete, list, history
-rimuru.costs.*        record (via POST /api/costs), daily_rollup
+rimuru.costs.*        record (POST /api/costs), daily_rollup
 rimuru.agents.*       update, delete, status, sync
 rimuru.sessions.*     cleanup
 ```
