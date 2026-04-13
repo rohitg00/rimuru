@@ -278,6 +278,22 @@ const ROUTES: &[Route] = &[
         path: "api/runaway/configure",
         function_id: "rimuru.runaway.configure",
     },
+    // Tree-sitter signature indexer
+    Route {
+        method: "POST",
+        path: "api/indexer/outline",
+        function_id: "rimuru.indexer.outline",
+    },
+    Route {
+        method: "POST",
+        path: "api/indexer/signatures",
+        function_id: "rimuru.indexer.signatures",
+    },
+    Route {
+        method: "POST",
+        path: "api/indexer/extract_symbol",
+        function_id: "rimuru.indexer.extract_symbol",
+    },
     // Guard wrapper
     Route {
         method: "GET",
