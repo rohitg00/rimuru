@@ -317,17 +317,19 @@ State lives in the engine's in-memory KV under scoped namespaces: `agents`, `ses
 Two call paths. Overlapping but not identical surfaces.
 
 - **HTTP** via `iii-http` on `:3111` -- registered from the central route table in [`crates/rimuru-core/src/triggers/api.rs`](crates/rimuru-core/src/triggers/api.rs). Payloads are normalized by `extract_input()` so path params, query params, and bodies merge into one `Value`.
-- **Direct trigger** via the iii WebSocket -- `iii.trigger(TriggerRequest { function_id: "rimuru.budget.check", ... })`. This is what the CLI uses and the only way to reach the guardrail functions below.
+- **Direct trigger** via the iii WebSocket -- `iii.trigger(TriggerRequest { function_id: "rimuru.budget.check", ... })`. This is what the CLI uses to skip the HTTP hop.
 
-The HTTP layer covers the public read/write surface: agents, sessions, costs, context, models, advisor, metrics, health, MCP proxy, hooks, plugins, and config. The v0.4.0 guardrails (budget engine, runaway detection, guard wrapper) are registered as iii functions but have no HTTP binding yet -- call them via `iii.trigger()`.
+The HTTP layer now covers everything including the v0.4.0 guardrails: agents, sessions, costs, **budget**, **runaway**, **guard**, context, models, advisor, metrics, health, MCP proxy, hooks, plugins, and config. The CLI prefers direct triggers for latency; external clients (Web UI, curl, scripts) use the HTTP routes.
 
 Function namespaces:
 
 ```text
-# HTTP + direct trigger
 rimuru.agents.*       list, get, create, connect, disconnect, detect   (plus update/delete/status/sync via trigger)
 rimuru.sessions.*     list, get, active, history                       (plus cleanup via trigger)
 rimuru.costs.*        summary, daily, by_agent, record                 (plus daily_rollup via trigger)
+rimuru.budget.*       check, status, set, alerts
+rimuru.runaway.*      analyze, scan, configure
+rimuru.guard.*        list, register, complete, history
 rimuru.hardware.*     get, detect
 rimuru.models.*       list, get, sync
 rimuru.advisor.*      assess, catalog
@@ -338,11 +340,6 @@ rimuru.hooks.*        register, dispatch
 rimuru.plugins.*      install, uninstall, start, stop
 rimuru.config.*       get, set
 rimuru.health.*       check
-
-# iii-trigger only (no HTTP route)
-rimuru.budget.*       check, status, set, alerts
-rimuru.runaway.*      analyze, scan, configure
-rimuru.guard.*        register, complete, list, history
 ```
 
 Full HTTP endpoint list with methods and paths is in [`docs/api.md`](docs/api.md).
