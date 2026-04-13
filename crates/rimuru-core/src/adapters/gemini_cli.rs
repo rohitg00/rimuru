@@ -357,6 +357,9 @@ impl GeminiCliAdapter {
             m if m.contains("2.5-flash") => (0.30, 2.50),
             m if m.contains("2.0-flash-lite") => (0.075, 0.30),
             m if m.contains("2.0-flash") => (0.15, 0.60),
+            m if m.contains("1.5-pro") => (1.25, 5.00),
+            m if m.contains("1.5-flash-8b") => (0.0375, 0.15),
+            m if m.contains("1.5-flash") => (0.075, 0.30),
             _ => (0.30, 2.50),
         };
         let input_cost = (input_tokens as f64 / 1_000_000.0) * input_rate;
