@@ -9,6 +9,7 @@ pub enum Tab {
     Agents,
     Sessions,
     Costs,
+    Budget,
     Models,
     Advisor,
     Context,
@@ -26,6 +27,7 @@ impl Tab {
             Tab::Agents,
             Tab::Sessions,
             Tab::Costs,
+            Tab::Budget,
             Tab::Models,
             Tab::Advisor,
             Tab::Context,
@@ -43,6 +45,7 @@ impl Tab {
             Tab::Agents => "Agents",
             Tab::Sessions => "Sessions",
             Tab::Costs => "Costs",
+            Tab::Budget => "Budget",
             Tab::Models => "Models",
             Tab::Advisor => "Advisor",
             Tab::Context => "Context",
@@ -83,6 +86,8 @@ pub struct App {
     pub context_utilization: Value,
     pub context_waste: Value,
     pub mcp_proxy_stats: Value,
+    pub budget_status: Value,
+    pub budget_alerts: Value,
 
     catalog_summary_cache: (usize, usize, usize, usize),
 }
@@ -120,6 +125,8 @@ impl App {
             context_utilization: Value::Null,
             context_waste: Value::Null,
             mcp_proxy_stats: Value::Null,
+            budget_status: Value::Null,
+            budget_alerts: Value::Null,
             catalog_summary_cache: (0, 0, 0, 0),
         }
     }
@@ -171,6 +178,12 @@ impl App {
             Tab::McpProxy => self
                 .mcp_proxy_stats
                 .get("tools")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0),
+            Tab::Budget => self
+                .budget_alerts
+                .get("alerts")
                 .and_then(|v| v.as_array())
                 .map(|a| a.len())
                 .unwrap_or(0),
@@ -293,6 +306,14 @@ impl App {
                 }
                 if let Some(v) = client.get("/context/waste").await {
                     self.context_waste = v;
+                }
+            }
+            Tab::Budget => {
+                if let Some(v) = client.get("/budget/status").await {
+                    self.budget_status = v;
+                }
+                if let Some(v) = client.get("/budget/alerts?limit=20").await {
+                    self.budget_alerts = v;
                 }
             }
             Tab::McpProxy => {

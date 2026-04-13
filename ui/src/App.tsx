@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Sessions from "./pages/Sessions";
 import Costs from "./pages/Costs";
+import Budget from "./pages/Budget";
 import Models from "./pages/Models";
 import Advisor from "./pages/Advisor";
 import Metrics from "./pages/Metrics";
@@ -24,6 +25,7 @@ const PAGES: Record<string, React.ComponentType> = {
   agents: Agents,
   sessions: Sessions,
   costs: Costs,
+  budget: Budget,
   models: Models,
   advisor: Advisor,
   metrics: Metrics,

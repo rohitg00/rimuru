@@ -139,6 +139,7 @@ fn draw(f: &mut Frame, app: &App) {
         Tab::Agents => draw_agents(f, app, chunks[1]),
         Tab::Sessions => draw_sessions(f, app, chunks[1]),
         Tab::Costs => draw_costs(f, app, chunks[1]),
+        Tab::Budget => draw_budget(f, app, chunks[1]),
         Tab::Models => draw_models(f, app, chunks[1]),
         Tab::Advisor => draw_advisor(f, app, chunks[1]),
         Tab::Context => draw_context(f, app, chunks[1]),
@@ -561,6 +562,206 @@ fn draw_costs(f: &mut Frame, app: &App, area: Rect) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(th.border))
             .title(Span::styled(" Daily Costs ", Style::default().fg(th.text))),
+    );
+
+    f.render_widget(table, chunks[1]);
+}
+
+fn draw_budget(f: &mut Frame, app: &App, area: Rect) {
+    let th = app.theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(8), Constraint::Min(0)])
+        .split(area);
+
+    let status = &app.budget_status;
+    let monthly_limit = val_f64(status, "monthly_limit");
+    let monthly_spent = val_f64(status, "monthly_spent");
+    let daily_limit = val_f64(status, "daily_limit");
+    let daily_spent = val_f64(status, "daily_spent");
+    let session_limit = val_f64(status, "session_limit");
+    let agent_daily_limit = val_f64(status, "agent_daily_limit");
+    let burn_rate = val_f64(status, "burn_rate_daily");
+    let projected = val_f64(status, "projected_monthly");
+    let action = val_str(status, "action_on_exceed");
+    let status_label = val_str(status, "status");
+    let threshold = val_f64(status, "alert_threshold");
+
+    let status_color = match status_label.as_str() {
+        "exceeded" => th.error,
+        "warning" => th.warning,
+        _ => th.success,
+    };
+
+    let cap_row = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+        ])
+        .split(chunks[0]);
+
+    let caps: [(&str, f64, f64); 4] = [
+        ("Monthly", monthly_spent, monthly_limit),
+        ("Daily", daily_spent, daily_limit),
+        ("Per Session", 0.0, session_limit),
+        ("Per Agent / Day", 0.0, agent_daily_limit),
+    ];
+
+    for (i, (label, spent, limit)) in caps.iter().copied().enumerate() {
+        let mut lines = vec![Line::from(vec![Span::styled(
+            format!(" {} ", label),
+            Style::default().fg(th.text_dim),
+        )])];
+
+        if limit <= 0.0 {
+            lines.push(Line::from(vec![Span::styled(
+                format!("${:.2}", spent),
+                Style::default().fg(th.text).add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(Line::from(vec![Span::styled(
+                "disabled",
+                Style::default().fg(th.text_dim),
+            )]));
+        } else {
+            let pct = (spent / limit * 100.0).min(100.0);
+            let cap_color = if spent >= limit {
+                th.error
+            } else if spent >= limit * threshold {
+                th.warning
+            } else {
+                th.success
+            };
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("${:.2}", spent),
+                    Style::default().fg(th.text).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(" / ${:.2}", limit),
+                    Style::default().fg(th.text_dim),
+                ),
+            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("{:.0}% used", pct),
+                Style::default().fg(cap_color),
+            )]));
+            let filled = ((pct / 100.0) * 18.0).round() as usize;
+            let bar = format!("[{}{}]", "#".repeat(filled), "-".repeat(18 - filled));
+            lines.push(Line::from(vec![Span::styled(
+                bar,
+                Style::default().fg(cap_color),
+            )]));
+        }
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border));
+        let para = Paragraph::new(lines).block(block);
+        f.render_widget(para, cap_row[i]);
+    }
+
+    let alerts = app
+        .budget_alerts
+        .get("alerts")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let total_alerts = app
+        .budget_alerts
+        .get("total")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
+    let summary_line = Line::from(vec![
+        Span::styled("status: ", Style::default().fg(th.text_dim)),
+        Span::styled(
+            status_label.to_uppercase(),
+            Style::default()
+                .fg(status_color)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("    "),
+        Span::styled("burn rate: ", Style::default().fg(th.text_dim)),
+        Span::styled(
+            format!("${:.2}/day", burn_rate),
+            Style::default().fg(th.text),
+        ),
+        Span::raw("    "),
+        Span::styled("projected month: ", Style::default().fg(th.text_dim)),
+        Span::styled(
+            format!("${:.2}", projected),
+            Style::default().fg(if monthly_limit > 0.0 && projected > monthly_limit {
+                th.error
+            } else {
+                th.text
+            }),
+        ),
+        Span::raw("    "),
+        Span::styled("on exceed: ", Style::default().fg(th.text_dim)),
+        Span::styled(action.to_uppercase(), Style::default().fg(th.accent)),
+    ]);
+
+    let header = Row::new(vec!["Time", "Type", "Hit", "Monthly", "Daily", "Message"])
+        .style(Style::default().fg(th.accent).add_modifier(Modifier::BOLD));
+
+    let rows: Vec<Row> = alerts
+        .iter()
+        .enumerate()
+        .map(|(i, a)| {
+            let alert_type = val_str(a, "alert_type");
+            let type_color = match alert_type.as_str() {
+                "exceeded" => th.error,
+                "warning" => th.warning,
+                _ => th.success,
+            };
+            let row = Row::new(vec![
+                Cell::from(val_str(a, "timestamp")),
+                Cell::from(Span::styled(
+                    alert_type.to_uppercase(),
+                    Style::default().fg(type_color),
+                )),
+                Cell::from(val_str(a, "limit_hit")),
+                Cell::from(format!("${:.2}", val_f64(a, "monthly_spent"))),
+                Cell::from(format!("${:.2}", val_f64(a, "daily_spent"))),
+                Cell::from(val_str(a, "message")),
+            ]);
+            if i == app.scroll {
+                row.style(Style::default().bg(th.selection))
+            } else {
+                row
+            }
+        })
+        .collect();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(20),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Min(20),
+        ],
+    )
+    .header(header)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(th.border))
+            .title(Line::from(vec![
+                Span::styled(" Budget ", Style::default().fg(th.text)),
+                Span::raw("("),
+                summary_line.spans.into_iter().fold(Span::raw(""), |_, s| s),
+                Span::raw(")"),
+                Span::styled(
+                    format!(" {} alerts ", total_alerts),
+                    Style::default().fg(th.text_dim),
+                ),
+            ])),
     );
 
     f.render_widget(table, chunks[1]);
