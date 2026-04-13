@@ -1,3 +1,17 @@
+# Rimuru ships this config so iii-engine starts with durable state out
+# of the box. Every worker that needs to persist something writes to
+# ${HOME}/.local/share/rimuru/<name>_store via iii's file_based KV
+# backend. iii expands ${HOME} inline before parsing YAML.
+#
+# The install script copies this file to ~/.config/rimuru/config.yaml
+# and the README tells users to launch iii with:
+#
+#     iii --config ~/.config/rimuru/config.yaml
+#
+# Without this config, iii runs with the default in-memory store and
+# loses every cost record, budget counter, and guard entry on restart
+# (iii prints a loud warning when that happens).
+
 modules:
   - name: iii-http
     config:
@@ -22,8 +36,8 @@ modules:
         name: kv
         config:
           store_method: file_based
-          file_path: ./data/stream_store
-          save_interval_ms: 5000
+          file_path: ${HOME}/.local/share/rimuru/stream_store
+          save_interval_ms: 250
 
   - name: iii-state
     config:
@@ -31,8 +45,8 @@ modules:
         name: kv
         config:
           store_method: file_based
-          file_path: ./data/state_store
-          save_interval_ms: 5000
+          file_path: ${HOME}/.local/share/rimuru/state_store
+          save_interval_ms: 250
 
   - name: iii-queue
     config:
@@ -40,8 +54,8 @@ modules:
         name: builtin
         config:
           store_method: file_based
-          file_path: ./data/queue_store
-          save_interval_ms: 5000
+          file_path: ${HOME}/.local/share/rimuru/queue_store
+          save_interval_ms: 250
 
   - name: iii-pubsub
     config:
@@ -54,8 +68,8 @@ modules:
         name: kv
         config:
           store_method: file_based
-          file_path: ./data/cron_locks
-          save_interval_ms: 5000
+          file_path: ${HOME}/.local/share/rimuru/cron_locks
+          save_interval_ms: 250
 
   - name: iii-observability
     config:
