@@ -86,23 +86,23 @@ async fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Resul
                     app.scroll = 0;
                 }
                 KeyCode::Char('5') => {
-                    app.tab = Tab::Models;
+                    app.tab = Tab::Budget;
                     app.scroll = 0;
                 }
                 KeyCode::Char('6') => {
-                    app.tab = Tab::Advisor;
+                    app.tab = Tab::Models;
                     app.scroll = 0;
                 }
                 KeyCode::Char('7') => {
-                    app.tab = Tab::Hooks;
+                    app.tab = Tab::Advisor;
                     app.scroll = 0;
                 }
                 KeyCode::Char('8') => {
-                    app.tab = Tab::Plugins;
+                    app.tab = Tab::Hooks;
                     app.scroll = 0;
                 }
                 KeyCode::Char('9') => {
-                    app.tab = Tab::Mcp;
+                    app.tab = Tab::Plugins;
                     app.scroll = 0;
                 }
                 KeyCode::Char('0') => {
@@ -603,11 +603,14 @@ fn draw_budget(f: &mut Frame, app: &App, area: Rect) {
         ])
         .split(chunks[0]);
 
-    let caps: [(&str, f64, f64); 4] = [
-        ("Monthly", monthly_spent, monthly_limit),
-        ("Daily", daily_spent, daily_limit),
-        ("Per Session", 0.0, session_limit),
-        ("Per Agent / Day", 0.0, agent_daily_limit),
+    // spent is None for caps that are enforced on record but not aggregated
+    // live here (per-session, per-agent). Rendering falls through to a
+    // "not tracked" variant instead of faking 0% usage.
+    let caps: [(&str, Option<f64>, f64); 4] = [
+        ("Monthly", Some(monthly_spent), monthly_limit),
+        ("Daily", Some(daily_spent), daily_limit),
+        ("Per Session", None, session_limit),
+        ("Per Agent / Day", None, agent_daily_limit),
     ];
 
     for (i, (label, spent, limit)) in caps.iter().copied().enumerate() {
@@ -618,14 +621,14 @@ fn draw_budget(f: &mut Frame, app: &App, area: Rect) {
 
         if limit <= 0.0 {
             lines.push(Line::from(vec![Span::styled(
-                format!("${:.2}", spent),
+                format!("${:.2}", spent.unwrap_or(0.0)),
                 Style::default().fg(th.text).add_modifier(Modifier::BOLD),
             )]));
             lines.push(Line::from(vec![Span::styled(
                 "disabled",
                 Style::default().fg(th.text_dim),
             )]));
-        } else {
+        } else if let Some(spent) = spent {
             let pct = (spent / limit * 100.0).min(100.0);
             let cap_color = if spent >= limit {
                 th.error
@@ -653,6 +656,25 @@ fn draw_budget(f: &mut Frame, app: &App, area: Rect) {
             lines.push(Line::from(vec![Span::styled(
                 bar,
                 Style::default().fg(cap_color),
+            )]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "— ",
+                    Style::default().fg(th.text_dim).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("/ ${:.2}", limit),
+                    Style::default().fg(th.text_dim),
+                ),
+            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "not tracked",
+                Style::default().fg(th.text_dim),
+            )]));
+            lines.push(Line::from(vec![Span::styled(
+                "[------------------]",
+                Style::default().fg(th.text_dim),
             )]));
         }
 

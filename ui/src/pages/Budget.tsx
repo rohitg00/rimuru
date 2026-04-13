@@ -185,8 +185,12 @@ export default function Budget() {
   async function save() {
     setSaving(true);
     setSaveError(null);
+    const payload = {
+      ...draft,
+      alert_threshold: Math.max(0, Math.min(1, draft.alert_threshold)),
+    };
     try {
-      await apiPost("/budget/set", draft);
+      await apiPost("/budget/set", payload);
       setEditing(false);
       refetch();
       refetchAlerts();
@@ -368,7 +372,12 @@ export default function Budget() {
               label="Alert threshold (0.0 - 1.0)"
               value={draft.alert_threshold}
               step={0.05}
-              onChange={(v) => setDraft({ ...draft, alert_threshold: v })}
+              onChange={(v) =>
+                setDraft({
+                  ...draft,
+                  alert_threshold: Math.max(0, Math.min(1, v)),
+                })
+              }
             />
             <div>
               <label
