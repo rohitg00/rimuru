@@ -2,6 +2,17 @@
 
 Endpoints are served by `rimuru-worker` via `iii-http` on `:3111`. Routes are registered from the central table in [`crates/rimuru-core/src/triggers/api.rs`](../crates/rimuru-core/src/triggers/api.rs) -- treat that file as the source of truth, this document as a navigable summary.
 
+## Versioning
+
+Every route is registered twice:
+
+- **Canonical:** `/api/v1/<path>` — the versioned route. Use this for any new integration. The `v1` prefix is locked: schemas under `/api/v1/` will only break on a future major bump (and that bump will land at `/api/v2/` first, with `/api/v1/` kept as an alias for at least one minor release).
+- **Legacy alias:** `/api/<path>` — same handler, no version prefix. Preserved for the CLI, the bundled web UI, and any pre-v0.4 external client. New external integrations should prefer `/api/v1/`; the unversioned alias may be dropped on a future major bump after a deprecation window.
+
+The two routes resolve to the same iii function, so they always return identical bodies. `API_VERSION` in `crates/rimuru-core/src/triggers/api.rs` is the single source of truth for the version segment — change it there to bump.
+
+The tables below list each route under its unversioned form for brevity. Every entry is also reachable at `/api/v1/<path>`.
+
 ## Response shape
 
 Every handler returns `api_response(data)` which wraps the payload as `{"status_code": 200, "body": <data>}`. The CLI's `unwrap_body()` unpacks this for 2xx responses. The `extract_input()` helper merges path params, query params, and JSON body into one `Value` before dispatch, so the handler treats all three as a single input map.

@@ -301,27 +301,46 @@ const ROUTES: &[Route] = &[
     },
 ];
 
+/// HTTP API version. Bumped when we make a breaking change to any
+/// route's request or response schema. Adding new fields or routes is
+/// backwards compatible and stays on the current version.
+pub const API_VERSION: &str = "v1";
+
+fn register_one(iii: &III, method: &str, path: &str, function_id: &str) {
+    if let Err(e) = iii.register_trigger(RegisterTriggerInput {
+        trigger_type: "http".to_string(),
+        function_id: function_id.to_string(),
+        config: json!({
+            "api_path": path,
+            "http_method": method,
+        }),
+    }) {
+        tracing::error!(
+            "Failed to register HTTP trigger {} -> {}: {}",
+            path,
+            function_id,
+            e
+        );
+    }
+}
+
 pub fn register(iii: &III) {
+    // Every route is registered twice: once at /api/v1/<path> as the
+    // versioned canonical route, and once at /api/<path> as a
+    // backward-compatible alias. The unversioned alias is preserved
+    // until external clients have migrated; new schemas should land
+    // under /api/v1 and only break the alias on a future major bump.
     for route in ROUTES {
-        match iii.register_trigger(RegisterTriggerInput {
-            trigger_type: "http".to_string(),
-            function_id: route.function_id.to_string(),
-            config: json!({
-                "api_path": route.path,
-                "http_method": route.method,
-            }),
-        }) {
-            Ok(_) => {}
-            Err(e) => {
-                tracing::error!(
-                    "Failed to register HTTP trigger {} -> {}: {}",
-                    route.path,
-                    route.function_id,
-                    e
-                );
-            }
-        }
+        // route.path always starts with "api/" — strip it and rebuild
+        let suffix = route.path.strip_prefix("api/").unwrap_or(route.path);
+        let v1_path = format!("api/{}/{}", API_VERSION, suffix);
+        register_one(iii, route.method, &v1_path, route.function_id);
+        register_one(iii, route.method, route.path, route.function_id);
     }
 
-    info!("Registered {} HTTP API triggers", ROUTES.len());
+    info!(
+        "Registered {} HTTP API triggers ({} unique routes × 2: /api/v1 canonical + /api alias)",
+        ROUTES.len() * 2,
+        ROUTES.len()
+    );
 }
