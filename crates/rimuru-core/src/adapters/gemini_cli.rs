@@ -12,6 +12,18 @@ use crate::models::{Agent, AgentStatus, AgentType, Session, SessionStatus};
 
 type Result<T> = std::result::Result<T, RimuruError>;
 
+fn gemini_binary_on_path() -> bool {
+    let Some(path_var) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let exe = if cfg!(windows) {
+        "gemini.exe"
+    } else {
+        "gemini"
+    };
+    std::env::split_paths(&path_var).any(|dir| dir.join(exe).is_file())
+}
+
 pub struct GeminiCliAdapter {
     config_path: PathBuf,
     connected: bool,
@@ -306,13 +318,16 @@ impl GeminiCliAdapter {
     }
 
     fn estimate_cost(model: &str, input_tokens: u64, output_tokens: u64) -> f64 {
+        // Rates from https://ai.google.dev/gemini-api/docs/pricing (USD per
+        // 1M tokens, text/image/video paid tier). Order matters: the more
+        // specific "flash-lite" variants must match before the broader
+        // "flash" arms.
         let (input_rate, output_rate) = match model {
-            m if m.contains("2.5-pro") || m.contains("2.5_pro") => (1.25, 10.0),
-            m if m.contains("2.5-flash") || m.contains("2.5_flash") => (0.30, 2.50),
-            m if m.contains("2.0-flash") || m.contains("2.0_flash") => (0.10, 0.40),
-            m if m.contains("flash-8b") => (0.0375, 0.15),
-            m if m.contains("1.5-pro") => (1.25, 5.0),
-            m if m.contains("1.5-flash") => (0.075, 0.30),
+            m if m.contains("2.5-pro") => (1.25, 10.00),
+            m if m.contains("2.5-flash-lite") => (0.10, 0.40),
+            m if m.contains("2.5-flash") => (0.30, 2.50),
+            m if m.contains("2.0-flash-lite") => (0.075, 0.30),
+            m if m.contains("2.0-flash") => (0.15, 0.60),
             _ => (0.30, 2.50),
         };
         let input_cost = (input_tokens as f64 / 1_000_000.0) * input_rate;
@@ -334,7 +349,7 @@ impl AgentAdapter for GeminiCliAdapter {
     }
 
     fn is_installed(&self) -> bool {
-        self.config_path.exists()
+        self.config_path.exists() || gemini_binary_on_path()
     }
 
     fn detect_version(&self) -> Option<String> {
@@ -343,9 +358,10 @@ impl AgentAdapter for GeminiCliAdapter {
 
     async fn connect(&mut self) -> Result<()> {
         if !self.is_installed() {
-            return Err(RimuruError::Adapter(
-                "Gemini CLI is not installed (~/.gemini not found)".into(),
-            ));
+            return Err(RimuruError::Adapter(format!(
+                "Gemini CLI is not installed ({} not found and `gemini` not on PATH)",
+                self.config_path.display()
+            )));
         }
         self.connected = true;
         debug!("Connected to Gemini CLI adapter");

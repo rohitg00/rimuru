@@ -294,6 +294,10 @@ fn agent_checks() -> Vec<(AgentType, Vec<std::path::PathBuf>)> {
         ),
         (AgentType::Goose, vec![home.join(".config/goose")]),
         (AgentType::OpenCode, vec![home.join(".opencode")]),
+        (
+            AgentType::GeminiCli,
+            vec![home.join(".gemini"), home.join(".config/gemini")],
+        ),
     ]
 }
 
