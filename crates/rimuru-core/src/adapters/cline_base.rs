@@ -31,7 +31,13 @@ type Result<T> = std::result::Result<T, RimuruError>;
 /// global storage on each platform. Used to locate Cline / Roo task
 /// directories without depending on a particular IDE distribution.
 pub fn vscode_global_storage_candidates() -> Vec<PathBuf> {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+    // No home dir → no candidates. The $home-relative paths below
+    // wouldn't match anything under /tmp either, so returning an
+    // empty list is cleaner than producing misleading entries.
+    let Some(home) = dirs::home_dir() else {
+        tracing::warn!("cline_base: home directory not available, skipping VS Code candidates");
+        return Vec::new();
+    };
     let mut out = Vec::new();
 
     #[cfg(target_os = "macos")]

@@ -29,8 +29,13 @@ pub struct ClineAdapter {
 impl ClineAdapter {
     pub fn new() -> Self {
         let config_path = find_extension_storage(EXTENSION_ID).unwrap_or_else(|| {
+            // find_extension_storage already walks every known VS Code
+            // globalStorage root. If none hit, fall through to a
+            // last-ditch $HOME/.vscode/extensions path so is_installed()
+            // keeps producing a sensible false when the extension
+            // genuinely isn't present.
             dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("/tmp"))
+                .unwrap_or_default()
                 .join(format!(".vscode/extensions/{}", EXTENSION_ID))
         });
 
@@ -48,7 +53,10 @@ impl ClineAdapter {
         let (input_rate, output_rate) = match model {
             m if m.contains("opus-4-6") || m.contains("opus-4-5") => (5.0, 25.0),
             m if m.contains("opus-4-1") || m.contains("opus-4") => (15.0, 75.0),
-            m if m.contains("opus") => (5.0, 25.0),
+            // Legacy catch-all: unversioned "opus" in a Claude model
+            // id almost always means Claude 3 Opus, which bills at
+            // the older $15/$75 rate — not the new Opus 4.5/4.6.
+            m if m.contains("opus") => (15.0, 75.0),
             m if m.contains("sonnet") => (3.0, 15.0),
             m if m.contains("haiku-4-5") => (1.0, 5.0),
             m if m.contains("haiku-3") => (0.25, 1.25),

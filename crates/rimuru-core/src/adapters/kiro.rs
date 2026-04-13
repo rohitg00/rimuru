@@ -28,7 +28,9 @@ pub struct KiroAdapter {
 
 impl KiroAdapter {
     pub fn new() -> Self {
-        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+        // No home dir → empty base; joined candidates won't match
+        // any real path, so is_installed() correctly reports false.
+        let home = dirs::home_dir().unwrap_or_default();
         let candidates = [
             home.join(".kiro"),
             home.join(".config/kiro"),
