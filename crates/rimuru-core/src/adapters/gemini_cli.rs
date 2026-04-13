@@ -348,15 +348,29 @@ impl GeminiCliAdapter {
 
     fn estimate_cost(model: &str, input_tokens: u64, output_tokens: u64) -> f64 {
         // Rates from https://ai.google.dev/gemini-api/docs/pricing (USD per
-        // 1M tokens, text/image/video paid tier). Order matters: the more
-        // specific "flash-lite" variants must match before the broader
-        // "flash" arms.
+        // 1M tokens, paid tier, text/image/video input). Order matters:
+        // the more specific "flash-lite" / "pro" variants must match
+        // before the broader "flash" / "pro" arms, and 3.x arms come
+        // before 2.x so "3.1-flash" is not shadowed by a looser rule.
+        //
+        // For Gemini 3.1 Pro and 2.5 Pro we always bill at the <=200k
+        // tier rate. We do not track prompt length here, and the >200k
+        // tier only applies to long-context calls. If that proves too
+        // optimistic in practice we can split on a request field later.
         let (input_rate, output_rate) = match model {
+            // Gemini 3.x
+            m if m.contains("3.1-pro") => (2.00, 12.00),
+            m if m.contains("3.1-flash-lite") => (0.25, 1.50),
+            m if m.contains("3.1-flash") => (0.50, 3.00),
+            m if m.contains("3-flash") => (0.50, 3.00),
+            // Gemini 2.5
             m if m.contains("2.5-pro") => (1.25, 10.00),
             m if m.contains("2.5-flash-lite") => (0.10, 0.40),
             m if m.contains("2.5-flash") => (0.30, 2.50),
+            // Gemini 2.0 (deprecated, shutdown 2026-06-01)
             m if m.contains("2.0-flash-lite") => (0.075, 0.30),
-            m if m.contains("2.0-flash") => (0.15, 0.60),
+            m if m.contains("2.0-flash") => (0.10, 0.40),
+            // Default: 2.5 Flash rates
             _ => (0.30, 2.50),
         };
         let input_cost = (input_tokens as f64 / 1_000_000.0) * input_rate;
@@ -498,12 +512,17 @@ impl AdapterCore for GeminiCliAdapter {
 
     fn supported_models(&self) -> Vec<String> {
         vec![
+            // Gemini 3.x
+            "gemini-3.1-pro-preview".into(),
+            "gemini-3.1-flash-lite-preview".into(),
+            "gemini-3-flash-preview".into(),
+            // Gemini 2.5
             "gemini-2.5-pro".into(),
             "gemini-2.5-flash".into(),
+            "gemini-2.5-flash-lite".into(),
+            // Gemini 2.0 (deprecated, shutdown 2026-06-01)
             "gemini-2.0-flash".into(),
-            "gemini-1.5-pro".into(),
-            "gemini-1.5-flash".into(),
-            "gemini-1.5-flash-8b".into(),
+            "gemini-2.0-flash-lite".into(),
         ]
     }
 
