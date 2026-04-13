@@ -19,6 +19,22 @@ use serde_json::Value;
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentType, Session};
 
+/// Return true if any of the given executable names can be found on
+/// the user's PATH. Handles the Windows `.exe` suffix transparently:
+/// callers pass plain names like `"amp"` or `"gemini"` and this
+/// helper appends `.exe` when compiled for Windows.
+pub fn binary_on_path(names: &[&str]) -> bool {
+    let Some(path_var) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let suffix = if cfg!(windows) { ".exe" } else { "" };
+    std::env::split_paths(&path_var).any(|dir| {
+        names
+            .iter()
+            .any(|name| dir.join(format!("{}{}", name, suffix)).is_file())
+    })
+}
+
 type Result<T> = std::result::Result<T, RimuruError>;
 
 #[async_trait]

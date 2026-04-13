@@ -6,7 +6,7 @@ use serde_json::Value;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::{AdapterCore, AgentAdapter};
+use super::{AdapterCore, AgentAdapter, binary_on_path};
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentStatus, AgentType, Session};
 
@@ -24,14 +24,6 @@ pub struct KiroAdapter {
     config_path: PathBuf,
     connected: bool,
     agent_id: Uuid,
-}
-
-fn kiro_binary_on_path() -> bool {
-    let Some(path_var) = std::env::var_os("PATH") else {
-        return false;
-    };
-    let exe = if cfg!(windows) { "kiro.exe" } else { "kiro" };
-    std::env::split_paths(&path_var).any(|dir| dir.join(exe).is_file())
 }
 
 impl KiroAdapter {
@@ -81,7 +73,7 @@ impl AgentAdapter for KiroAdapter {
     }
 
     fn is_installed(&self) -> bool {
-        self.config_path.exists() || kiro_binary_on_path()
+        self.config_path.exists() || binary_on_path(&["kiro"])
     }
 
     fn detect_version(&self) -> Option<String> {

@@ -6,7 +6,7 @@ use serde_json::Value;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::{AdapterCore, AgentAdapter};
+use super::{AdapterCore, AgentAdapter, binary_on_path};
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentStatus, AgentType, Session};
 
@@ -25,18 +25,6 @@ pub struct WindsurfAdapter {
     config_path: PathBuf,
     connected: bool,
     agent_id: Uuid,
-}
-
-fn windsurf_binary_on_path() -> bool {
-    let Some(path_var) = std::env::var_os("PATH") else {
-        return false;
-    };
-    let exes = if cfg!(windows) {
-        ["windsurf.exe", "codeium.exe"]
-    } else {
-        ["windsurf", "codeium"]
-    };
-    std::env::split_paths(&path_var).any(|dir| exes.iter().any(|exe| dir.join(exe).is_file()))
 }
 
 impl WindsurfAdapter {
@@ -291,7 +279,7 @@ impl AgentAdapter for WindsurfAdapter {
     }
 
     fn is_installed(&self) -> bool {
-        self.config_path.exists() || windsurf_binary_on_path()
+        self.config_path.exists() || binary_on_path(&["windsurf", "codeium"])
     }
 
     fn detect_version(&self) -> Option<String> {

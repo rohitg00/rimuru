@@ -6,7 +6,7 @@ use serde_json::Value;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::{AdapterCore, AgentAdapter};
+use super::{AdapterCore, AgentAdapter, binary_on_path};
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentStatus, AgentType, Session};
 
@@ -23,14 +23,6 @@ pub struct AmpAdapter {
     config_path: PathBuf,
     connected: bool,
     agent_id: Uuid,
-}
-
-fn amp_binary_on_path() -> bool {
-    let Some(path_var) = std::env::var_os("PATH") else {
-        return false;
-    };
-    let exe = if cfg!(windows) { "amp.exe" } else { "amp" };
-    std::env::split_paths(&path_var).any(|dir| dir.join(exe).is_file())
 }
 
 impl AmpAdapter {
@@ -76,7 +68,7 @@ impl AgentAdapter for AmpAdapter {
     }
 
     fn is_installed(&self) -> bool {
-        self.config_path.exists() || amp_binary_on_path()
+        self.config_path.exists() || binary_on_path(&["amp"])
     }
 
     fn detect_version(&self) -> Option<String> {
