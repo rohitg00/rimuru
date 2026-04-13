@@ -285,6 +285,35 @@ impl GeminiCliAdapter {
 
             let mut session = Session::new(self.agent_id, AgentType::GeminiCli);
 
+            if let Some(sid) = entry
+                .get("sessionId")
+                .or_else(|| entry.get("session_id"))
+                .or_else(|| entry.get("id"))
+                .and_then(|v| v.as_str())
+                && let Ok(parsed) = uuid::Uuid::parse_str(sid)
+            {
+                session.id = parsed;
+            }
+
+            if let Some(ts) = entry
+                .get("timestamp")
+                .or_else(|| entry.get("createdAt"))
+                .or_else(|| entry.get("created_at"))
+                .and_then(|v| v.as_str())
+                && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts)
+            {
+                session.started_at = dt.with_timezone(&Utc);
+            }
+
+            if let Some(end_ts) = entry
+                .get("endedAt")
+                .or_else(|| entry.get("ended_at"))
+                .and_then(|v| v.as_str())
+                && let Ok(dt) = chrono::DateTime::parse_from_rfc3339(end_ts)
+            {
+                session.ended_at = Some(dt.with_timezone(&Utc));
+            }
+
             if let Some(model) = entry.get("model").and_then(|m| m.as_str()) {
                 session.model = Some(model.to_string());
             }
@@ -404,8 +433,11 @@ impl AgentAdapter for GeminiCliAdapter {
         };
         agent.last_seen = Some(Utc::now());
 
-        let session_files = self.scan_sessions().unwrap_or_default();
-        agent.session_count = session_files.len() as u64;
+        agent.session_count = self
+            .get_sessions()
+            .await
+            .map(|s| s.len() as u64)
+            .unwrap_or(0);
 
         let settings = self
             .read_settings()
@@ -419,12 +451,18 @@ impl AgentAdapter for GeminiCliAdapter {
     }
 
     async fn get_sessions(&self) -> Result<Vec<Session>> {
+        use std::collections::HashSet;
+
         let mut sessions = Vec::new();
+        let mut seen_ids: HashSet<uuid::Uuid> = HashSet::new();
 
         let session_files = self.scan_sessions()?;
         for file in &session_files {
             match self.parse_session_file(file) {
-                Ok(s) => sessions.push(s),
+                Ok(s) => {
+                    seen_ids.insert(s.id);
+                    sessions.push(s);
+                }
                 Err(e) => warn!(
                     "Failed to parse Gemini CLI session {}: {}",
                     file.display(),
@@ -434,7 +472,13 @@ impl AgentAdapter for GeminiCliAdapter {
         }
 
         match self.parse_history() {
-            Ok(history_sessions) => sessions.extend(history_sessions),
+            Ok(history_sessions) => {
+                for s in history_sessions {
+                    if seen_ids.insert(s.id) {
+                        sessions.push(s);
+                    }
+                }
+            }
             Err(e) => warn!("Failed to parse Gemini CLI history: {}", e),
         }
 
