@@ -11,3 +11,4 @@ pub mod metrics;
 pub mod models;
 pub mod plugins;
 pub mod sessions;
+pub mod slim;

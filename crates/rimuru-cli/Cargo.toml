@@ -9,6 +9,7 @@ name = "rimuru"
 path = "src/main.rs"
 
 [dependencies]
+rimuru-core = { path = "../rimuru-core" }
 iii-sdk.workspace = true
 tokio.workspace = true
 serde.workspace = true

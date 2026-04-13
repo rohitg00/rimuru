@@ -3324,6 +3324,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "iii-sdk",
+ "rimuru-core",
  "serde",
  "serde_json",
  "serde_yaml",

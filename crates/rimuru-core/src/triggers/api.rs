@@ -236,6 +236,69 @@ const ROUTES: &[Route] = &[
         path: "api/config",
         function_id: "rimuru.config.set",
     },
+    // Budget engine
+    Route {
+        method: "POST",
+        path: "api/budget/check",
+        function_id: "rimuru.budget.check",
+    },
+    Route {
+        method: "GET",
+        path: "api/budget/status",
+        function_id: "rimuru.budget.status",
+    },
+    Route {
+        method: "POST",
+        path: "api/budget/set",
+        function_id: "rimuru.budget.set",
+    },
+    Route {
+        method: "GET",
+        path: "api/budget/alerts",
+        function_id: "rimuru.budget.alerts",
+    },
+    // Runaway detection
+    Route {
+        method: "POST",
+        path: "api/runaway/analyze",
+        function_id: "rimuru.runaway.analyze",
+    },
+    Route {
+        method: "GET",
+        path: "api/runaway/scan",
+        function_id: "rimuru.runaway.scan",
+    },
+    Route {
+        method: "POST",
+        path: "api/runaway/configure",
+        function_id: "rimuru.runaway.configure",
+    },
+    Route {
+        method: "GET",
+        path: "api/runaway/configure",
+        function_id: "rimuru.runaway.configure",
+    },
+    // Guard wrapper
+    Route {
+        method: "GET",
+        path: "api/guard",
+        function_id: "rimuru.guard.list",
+    },
+    Route {
+        method: "POST",
+        path: "api/guard/register",
+        function_id: "rimuru.guard.register",
+    },
+    Route {
+        method: "POST",
+        path: "api/guard/complete",
+        function_id: "rimuru.guard.complete",
+    },
+    Route {
+        method: "GET",
+        path: "api/guard/history",
+        function_id: "rimuru.guard.history",
+    },
 ];
 
 pub fn register(iii: &III) {
