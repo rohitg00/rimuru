@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQuery } from "../hooks/useQuery";
 import { apiPost } from "../api/client";
 import { formatCost } from "../utils/format";
@@ -53,7 +53,7 @@ function CapBar({
   threshold,
 }: {
   label: string;
-  spent: number;
+  spent: number | null;
   limit: number;
   threshold: number;
 }) {
@@ -67,11 +67,40 @@ function CapBar({
           <p className="text-xs text-[var(--text-secondary)]">disabled</p>
         </div>
         <p className="text-2xl font-bold text-[var(--text-primary)]">
-          {formatCost(spent)}
+          {formatCost(spent ?? 0)}
         </p>
         <p className="text-xs text-[var(--text-secondary)] mt-1">
           set a limit in Settings to enable
         </p>
+      </div>
+    );
+  }
+
+  if (spent == null) {
+    return (
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+        <div className="flex items-baseline justify-between mb-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+            {label}
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">not tracked</p>
+        </div>
+        <p className="text-2xl font-bold text-[var(--text-secondary)]">
+          — <span className="text-sm font-normal">/ {formatCost(limit)}</span>
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] mt-1">
+          cap enforced on record; live usage not aggregated here
+        </p>
+        <div className="mt-3 h-2 w-full rounded-full bg-[var(--border)] overflow-hidden">
+          <div
+            className="h-full"
+            style={{
+              width: "100%",
+              backgroundImage:
+                "repeating-linear-gradient(45deg, var(--border) 0 4px, transparent 4px 8px)",
+            }}
+          />
+        </div>
       </div>
     );
   }
@@ -126,6 +155,7 @@ export default function Budget() {
     10000,
   );
 
+  const actionSelectId = useId();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
     monthly_limit: 0,
@@ -215,13 +245,13 @@ export default function Budget() {
         />
         <CapBar
           label="Per Session"
-          spent={0}
+          spent={null}
           limit={status.session_limit}
           threshold={status.alert_threshold}
         />
         <CapBar
           label="Per Agent / Day"
-          spent={0}
+          spent={null}
           limit={status.agent_daily_limit ?? 0}
           threshold={status.alert_threshold}
         />
@@ -341,10 +371,14 @@ export default function Budget() {
               onChange={(v) => setDraft({ ...draft, alert_threshold: v })}
             />
             <div>
-              <label className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+              <label
+                htmlFor={actionSelectId}
+                className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+              >
                 Action on exceed
               </label>
               <select
+                id={actionSelectId}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm text-[var(--text-primary)]"
                 value={draft.action}
                 onChange={(e) =>
@@ -396,9 +430,9 @@ export default function Budget() {
                 </tr>
               </thead>
               <tbody>
-                {alertsResp.alerts.map((a) => (
+                {alertsResp.alerts.map((a, idx) => (
                   <tr
-                    key={a.timestamp + a.message}
+                    key={`${a.timestamp}-${a.limit_hit}-${idx}`}
                     className="border-b border-[var(--border)] last:border-b-0"
                   >
                     <td className="py-2 pr-4 font-mono text-xs text-[var(--text-secondary)]">
@@ -449,12 +483,17 @@ function NumberField({
   step?: number;
   onChange: (v: number) => void;
 }) {
+  const inputId = useId();
   return (
     <div>
-      <label className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+      <label
+        htmlFor={inputId}
+        className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+      >
         {label}
       </label>
       <input
+        id={inputId}
         type="number"
         min={0}
         step={step}

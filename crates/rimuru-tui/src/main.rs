@@ -752,16 +752,19 @@ fn draw_budget(f: &mut Frame, app: &App, area: Rect) {
         Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(th.border))
-            .title(Line::from(vec![
-                Span::styled(" Budget ", Style::default().fg(th.text)),
-                Span::raw("("),
-                summary_line.spans.into_iter().fold(Span::raw(""), |_, s| s),
-                Span::raw(")"),
-                Span::styled(
+            .title({
+                let mut title_spans = vec![
+                    Span::styled(" Budget ", Style::default().fg(th.text)),
+                    Span::raw("("),
+                ];
+                title_spans.extend(summary_line.spans);
+                title_spans.push(Span::raw(")"));
+                title_spans.push(Span::styled(
                     format!(" {} alerts ", total_alerts),
                     Style::default().fg(th.text_dim),
-                ),
-            ])),
+                ));
+                Line::from(title_spans)
+            }),
     );
 
     f.render_widget(table, chunks[1]);
