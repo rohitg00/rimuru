@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "../hooks/useQuery";
 import { apiPut } from "../api/client";
 import type { AppConfig } from "../api/types";
+import ConfigSync from "./ConfigSync";
 
 interface FieldDef {
   key: keyof AppConfig;
@@ -281,6 +282,10 @@ export default function Settings() {
         >
           {saving ? "Saving..." : "Save Settings"}
         </button>
+      </div>
+
+      <div className="pt-8 mt-8 border-t border-[var(--border)]">
+        <ConfigSync />
       </div>
     </div>
   );

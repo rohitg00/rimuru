@@ -259,6 +259,29 @@ enum ConfigAction {
     Get { key: Option<String> },
     #[command(about = "Set config value")]
     Set { key: String, value: String },
+    #[command(about = "Cross-agent config synchronization")]
+    Sync {
+        #[command(subcommand)]
+        action: ConfigSyncAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigSyncAction {
+    #[command(about = "Read all installed agents and emit canonical JSON to stdout")]
+    Export,
+    #[command(about = "Apply canonical JSON to every installed agent (use - for stdin)")]
+    Import {
+        #[arg(help = "Path to canonical JSON file, or - for stdin")]
+        path: String,
+        #[arg(long, help = "Actually write changes (default is dry-run)")]
+        apply: bool,
+    },
+    #[command(about = "Show drift between installed agents")]
+    Diff {
+        #[arg(long, help = "Show diff for a single agent only")]
+        agent: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -409,6 +432,15 @@ async fn main() -> Result<()> {
             ConfigAction::Set { key, value } => {
                 commands::config::set(&iii, &key, &value, format).await
             }
+            ConfigAction::Sync { action } => match action {
+                ConfigSyncAction::Export => commands::config::sync_export(&iii).await,
+                ConfigSyncAction::Import { path, apply } => {
+                    commands::config::sync_import(&iii, &path, apply).await
+                }
+                ConfigSyncAction::Diff { agent } => {
+                    commands::config::sync_diff(&iii, agent.as_deref()).await
+                }
+            },
         },
 
         Commands::Guard { action } => match action {
