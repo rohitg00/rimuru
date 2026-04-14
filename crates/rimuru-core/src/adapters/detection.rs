@@ -40,6 +40,9 @@ fn build_detectors() -> Vec<AgentDetector> {
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     let vscode_config = home.join(".vscode");
 
+    let cline_storage = super::cline_base::find_extension_storage("saoudrizwan.claude-dev");
+    let roo_storage = super::cline_base::find_extension_storage("rooveterinaryinc.roo-cline");
+
     vec![
         AgentDetector {
             agent_type: AgentType::ClaudeCode,
@@ -72,6 +75,38 @@ fn build_detectors() -> Vec<AgentDetector> {
         AgentDetector {
             agent_type: AgentType::GeminiCli,
             paths: vec![home.join(".gemini"), home.join(".config/gemini")],
+        },
+        AgentDetector {
+            agent_type: AgentType::Windsurf,
+            paths: vec![
+                home.join(".windsurf"),
+                home.join(".codeium"),
+                home.join(".config/windsurf"),
+            ],
+        },
+        AgentDetector {
+            agent_type: AgentType::Cline,
+            paths: cline_storage
+                .map(|p| vec![p])
+                .unwrap_or_else(|| vec![home.join(".vscode/extensions/saoudrizwan.claude-dev")]),
+        },
+        AgentDetector {
+            agent_type: AgentType::Roo,
+            paths: roo_storage.map(|p| vec![p]).unwrap_or_else(|| {
+                vec![home.join(".vscode/extensions/rooveterinaryinc.roo-cline")]
+            }),
+        },
+        AgentDetector {
+            agent_type: AgentType::Amp,
+            paths: vec![home.join(".amp"), home.join(".config/amp")],
+        },
+        AgentDetector {
+            agent_type: AgentType::Kiro,
+            paths: vec![
+                home.join(".kiro"),
+                home.join(".config/kiro"),
+                home.join(".aws/kiro"),
+            ],
         },
     ]
 }
@@ -150,6 +185,44 @@ pub fn detect_agent_config_path(agent_type: AgentType) -> Option<PathBuf> {
             } else {
                 home.join(".config/gemini")
             }
+        }
+        AgentType::Windsurf => {
+            for cand in [
+                home.join(".windsurf"),
+                home.join(".codeium"),
+                home.join(".config/windsurf"),
+            ] {
+                if cand.exists() {
+                    return Some(cand);
+                }
+            }
+            return None;
+        }
+        AgentType::Cline => {
+            return super::cline_base::find_extension_storage("saoudrizwan.claude-dev");
+        }
+        AgentType::Roo => {
+            return super::cline_base::find_extension_storage("rooveterinaryinc.roo-cline");
+        }
+        AgentType::Amp => {
+            for cand in [home.join(".amp"), home.join(".config/amp")] {
+                if cand.exists() {
+                    return Some(cand);
+                }
+            }
+            return None;
+        }
+        AgentType::Kiro => {
+            for cand in [
+                home.join(".kiro"),
+                home.join(".config/kiro"),
+                home.join(".aws/kiro"),
+            ] {
+                if cand.exists() {
+                    return Some(cand);
+                }
+            }
+            return None;
         }
     };
 

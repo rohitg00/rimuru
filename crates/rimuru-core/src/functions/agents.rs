@@ -271,7 +271,23 @@ fn register_status(iii: &III, kv: &StateKV) {
 }
 
 fn agent_checks() -> Vec<(AgentType, Vec<std::path::PathBuf>)> {
+    use crate::adapters::cline_base::find_extension_storage;
+
     let home = dirs::home_dir().unwrap_or_default();
+
+    // VS Code extension paths come from the shared resolver in
+    // cline_base, which walks every IDE storage root we know about.
+    // Falling back to a home-rooted .vscode/extensions path keeps
+    // detection from going completely empty when nothing matches.
+    let cline_paths = match find_extension_storage("saoudrizwan.claude-dev") {
+        Some(p) => vec![p],
+        None => vec![home.join(".vscode/extensions/saoudrizwan.claude-dev")],
+    };
+    let roo_paths = match find_extension_storage("rooveterinaryinc.roo-cline") {
+        Some(p) => vec![p],
+        None => vec![home.join(".vscode/extensions/rooveterinaryinc.roo-cline")],
+    };
+
     vec![
         (AgentType::ClaudeCode, vec![home.join(".claude")]),
         (
@@ -297,6 +313,28 @@ fn agent_checks() -> Vec<(AgentType, Vec<std::path::PathBuf>)> {
         (
             AgentType::GeminiCli,
             vec![home.join(".gemini"), home.join(".config/gemini")],
+        ),
+        (
+            AgentType::Windsurf,
+            vec![
+                home.join(".windsurf"),
+                home.join(".codeium"),
+                home.join(".config/windsurf"),
+            ],
+        ),
+        (AgentType::Cline, cline_paths),
+        (AgentType::Roo, roo_paths),
+        (
+            AgentType::Amp,
+            vec![home.join(".amp"), home.join(".config/amp")],
+        ),
+        (
+            AgentType::Kiro,
+            vec![
+                home.join(".kiro"),
+                home.join(".config/kiro"),
+                home.join(".aws/kiro"),
+            ],
         ),
     ]
 }
@@ -453,6 +491,8 @@ fn register_disconnect(iii: &III, kv: &StateKV) {
 }
 
 fn get_adapter(agent_type: &AgentType) -> Option<Box<dyn AgentAdapter>> {
+    use crate::adapters::{AmpAdapter, ClineAdapter, KiroAdapter, RooAdapter, WindsurfAdapter};
+
     match agent_type {
         AgentType::ClaudeCode => Some(Box::new(ClaudeCodeAdapter::new())),
         AgentType::Cursor => Some(Box::new(CursorAdapter::new())),
@@ -461,6 +501,11 @@ fn get_adapter(agent_type: &AgentType) -> Option<Box<dyn AgentAdapter>> {
         AgentType::Goose => Some(Box::new(GooseAdapter::new())),
         AgentType::OpenCode => Some(Box::new(OpenCodeAdapter::new())),
         AgentType::GeminiCli => Some(Box::new(GeminiCliAdapter::new())),
+        AgentType::Windsurf => Some(Box::new(WindsurfAdapter::new())),
+        AgentType::Cline => Some(Box::new(ClineAdapter::new())),
+        AgentType::Roo => Some(Box::new(RooAdapter::new())),
+        AgentType::Amp => Some(Box::new(AmpAdapter::new())),
+        AgentType::Kiro => Some(Box::new(KiroAdapter::new())),
     }
 }
 

@@ -1,17 +1,39 @@
 use async_trait::async_trait;
+pub mod amp;
 pub mod claude_code;
+pub mod cline;
+pub mod cline_base;
 pub mod codex;
 pub mod copilot;
 pub mod cursor;
 pub mod detection;
 pub mod gemini_cli;
 pub mod goose;
+pub mod kiro;
 pub mod opencode;
+pub mod roo;
+pub mod windsurf;
 
 use serde_json::Value;
 
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentType, Session};
+
+/// Return true if any of the given executable names can be found on
+/// the user's PATH. Handles the Windows `.exe` suffix transparently:
+/// callers pass plain names like `"amp"` or `"gemini"` and this
+/// helper appends `.exe` when compiled for Windows.
+pub fn binary_on_path(names: &[&str]) -> bool {
+    let Some(path_var) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let suffix = if cfg!(windows) { ".exe" } else { "" };
+    std::env::split_paths(&path_var).any(|dir| {
+        names
+            .iter()
+            .any(|name| dir.join(format!("{}{}", name, suffix)).is_file())
+    })
+}
 
 type Result<T> = std::result::Result<T, RimuruError>;
 
@@ -114,11 +136,16 @@ impl<T: AdapterCore> SessionMonitor for T {
     }
 }
 
+pub use amp::AmpAdapter;
 pub use claude_code::ClaudeCodeAdapter;
+pub use cline::ClineAdapter;
 pub use codex::CodexAdapter;
 pub use copilot::CopilotAdapter;
 pub use cursor::CursorAdapter;
 pub use detection::{detect_agent_config_path, detect_all_with_paths, detect_installed_agents};
 pub use gemini_cli::GeminiCliAdapter;
 pub use goose::GooseAdapter;
+pub use kiro::KiroAdapter;
 pub use opencode::OpenCodeAdapter;
+pub use roo::RooAdapter;
+pub use windsurf::WindsurfAdapter;
