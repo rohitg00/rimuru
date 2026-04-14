@@ -7,6 +7,7 @@ pub mod guard;
 pub mod hardware;
 pub mod health;
 pub mod hooks;
+pub mod indexer;
 pub mod mcp;
 pub mod mcp_proxy;
 pub mod metrics;
@@ -41,6 +42,7 @@ pub fn register_all(iii: &III, kv: &StateKV) {
     plugins::register(iii, kv);
     mcp::register(iii, kv);
     mcp_proxy::register(iii, kv, proxy);
+    indexer::register(iii, kv);
     runaway::register(iii, kv);
     optimize::register(iii, kv);
     skillkit::register(iii, kv);

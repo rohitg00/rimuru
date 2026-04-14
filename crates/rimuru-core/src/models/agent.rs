@@ -12,6 +12,11 @@ pub enum AgentType {
     Goose,
     OpenCode,
     GeminiCli,
+    Windsurf,
+    Cline,
+    Roo,
+    Amp,
+    Kiro,
 }
 
 impl AgentType {
@@ -24,6 +29,11 @@ impl AgentType {
             Self::Goose => "Goose",
             Self::OpenCode => "OpenCode",
             Self::GeminiCli => "Gemini CLI",
+            Self::Windsurf => "Windsurf",
+            Self::Cline => "Cline",
+            Self::Roo => "Roo Code",
+            Self::Amp => "Amp",
+            Self::Kiro => "Kiro",
         }
     }
 
@@ -36,6 +46,11 @@ impl AgentType {
             Self::Goose,
             Self::OpenCode,
             Self::GeminiCli,
+            Self::Windsurf,
+            Self::Cline,
+            Self::Roo,
+            Self::Amp,
+            Self::Kiro,
         ]
     }
 }
