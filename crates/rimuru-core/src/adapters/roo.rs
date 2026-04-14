@@ -6,7 +6,9 @@ use serde_json::Value;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::cline_base::{find_extension_storage, parse_task_dir, scan_task_dirs};
+use super::cline_base::{
+    canonical_extension_storage, find_extension_storage, parse_task_dir, scan_task_dirs,
+};
 use super::{AdapterCore, AgentAdapter};
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentStatus, AgentType, Session};
@@ -27,14 +29,11 @@ pub struct RooAdapter {
 
 impl RooAdapter {
     pub fn new() -> Self {
-        let config_path = find_extension_storage(EXTENSION_ID).unwrap_or_else(|| {
-            // Last-ditch $HOME/.vscode/extensions path — see cline.rs
-            // for the rationale. Empty HOME → unreachable path →
-            // is_installed() reports false, which is correct.
-            dirs::home_dir()
-                .unwrap_or_default()
-                .join(format!(".vscode/extensions/{}", EXTENSION_ID))
-        });
+        // See cline.rs for the rationale: cline_base::scan_task_dirs
+        // expects `<config_path>/tasks/...`, so the fallback must be
+        // a globalStorage-shape path even when nothing matches today.
+        let config_path = find_extension_storage(EXTENSION_ID)
+            .unwrap_or_else(|| canonical_extension_storage(EXTENSION_ID));
 
         Self {
             config_path,

@@ -6,7 +6,9 @@ use serde_json::Value;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::cline_base::{find_extension_storage, parse_task_dir, scan_task_dirs};
+use super::cline_base::{
+    canonical_extension_storage, find_extension_storage, parse_task_dir, scan_task_dirs,
+};
 use super::{AdapterCore, AgentAdapter};
 use crate::error::RimuruError;
 use crate::models::{Agent, AgentStatus, AgentType, Session};
@@ -28,16 +30,16 @@ pub struct ClineAdapter {
 
 impl ClineAdapter {
     pub fn new() -> Self {
-        let config_path = find_extension_storage(EXTENSION_ID).unwrap_or_else(|| {
-            // find_extension_storage already walks every known VS Code
-            // globalStorage root. If none hit, fall through to a
-            // last-ditch $HOME/.vscode/extensions path so is_installed()
-            // keeps producing a sensible false when the extension
-            // genuinely isn't present.
-            dirs::home_dir()
-                .unwrap_or_default()
-                .join(format!(".vscode/extensions/{}", EXTENSION_ID))
-        });
+        // config_path must be the globalStorage root for the extension,
+        // not its install directory — cline_base::scan_task_dirs
+        // scans `<config_path>/tasks/<task_id>/`. If find_extension_storage
+        // doesn't hit anything on this machine we fall back to the
+        // canonical globalStorage *shape* (possibly non-existent)
+        // rather than `~/.vscode/extensions/<id>`, which would make
+        // `is_installed()` incorrectly report true while session
+        // discovery scanned the wrong subtree.
+        let config_path = find_extension_storage(EXTENSION_ID)
+            .unwrap_or_else(|| canonical_extension_storage(EXTENSION_ID));
 
         Self {
             config_path,

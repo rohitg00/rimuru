@@ -15,7 +15,7 @@
 //!
 //! Everything else (path layout, JSON shape, token fields) is shared.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use serde_json::Value;
@@ -83,9 +83,23 @@ pub fn find_extension_storage(extension_id: &str) -> Option<PathBuf> {
     None
 }
 
+/// Canonical (possibly non-existent) globalStorage path for an
+/// extension. Used as a fallback `config_path` when we haven't found
+/// a real one — keeps the path shape consistent with what
+/// `scan_task_dirs` expects, so `is_installed()` reports false
+/// instead of misdirecting session discovery into a non-storage dir
+/// like `~/.vscode/extensions/<id>`.
+pub fn canonical_extension_storage(extension_id: &str) -> PathBuf {
+    vscode_global_storage_candidates()
+        .into_iter()
+        .next()
+        .map(|root| root.join(extension_id))
+        .unwrap_or_else(|| PathBuf::from(extension_id))
+}
+
 /// Walk `<extension_storage>/tasks/<task_id>/` and return every task
 /// directory that contains an api_conversation_history file.
-pub fn scan_task_dirs(storage: &PathBuf) -> Result<Vec<PathBuf>> {
+pub fn scan_task_dirs(storage: &Path) -> Result<Vec<PathBuf>> {
     let tasks_root = storage.join("tasks");
     if !tasks_root.exists() {
         return Ok(vec![]);
@@ -109,11 +123,7 @@ pub fn scan_task_dirs(storage: &PathBuf) -> Result<Vec<PathBuf>> {
 /// Parse one task directory into a Session. The task ID (folder name)
 /// is used as the session ID when it parses as a UUID — Cline writes
 /// timestamp-prefixed names by default, so this is best-effort.
-pub fn parse_task_dir(
-    task_dir: &PathBuf,
-    agent_id: Uuid,
-    agent_type: AgentType,
-) -> Result<Session> {
+pub fn parse_task_dir(task_dir: &Path, agent_id: Uuid, agent_type: AgentType) -> Result<Session> {
     let mut session = Session::new(agent_id, agent_type);
 
     // Try .json then .jsonl

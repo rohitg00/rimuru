@@ -16,10 +16,16 @@ type Result<T> = std::result::Result<T, RimuruError>;
 ///
 /// Same shape as the Amp stub: detect the install, surface the
 /// version, return empty sessions with a tracing::warn until we have
-/// a real on-disk format to parse. Kiro ships as a JetBrains/VS Code
-/// extension, so the config tree lives under the IDE's plugin storage
-/// rather than a top-level dotfile — paths below cover both common
-/// install layouts.
+/// a real on-disk format to parse.
+///
+/// Detection is deliberately minimal and covers only the shapes we
+/// can verify today: a `kiro` binary on PATH, or a dotfile root at
+/// `~/.kiro`, `~/.config/kiro`, or `~/.aws/kiro`. Kiro is also
+/// distributed as a JetBrains / VS Code plugin; those IDE-only
+/// installs are **not** detected from this adapter until we have a
+/// documented plugin-storage path. Adding speculative IDE probes
+/// here would report false-positives on developers who have those
+/// IDEs installed without Kiro, which is worse than a known gap.
 pub struct KiroAdapter {
     config_path: PathBuf,
     connected: bool,
