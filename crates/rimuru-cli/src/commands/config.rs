@@ -63,6 +63,8 @@ pub async fn sync_import(iii: &III, path: &str, apply: bool) -> Result<()> {
         .await?;
     let body = crate::output::unwrap_body(result);
 
+    let mut failed_agents: Vec<String> = Vec::new();
+
     if let Some(results) = body.get("results").and_then(|v| v.as_object()) {
         for (agent, entry) in results {
             let applied = entry
@@ -74,6 +76,7 @@ pub async fn sync_import(iii: &III, path: &str, apply: bool) -> Result<()> {
                 .get("backup_file")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
+            let error = entry.get("error").and_then(|v| v.as_str());
 
             println!("== {} ==", agent);
             if applied {
@@ -81,10 +84,17 @@ pub async fn sync_import(iii: &III, path: &str, apply: bool) -> Result<()> {
                 if !backup.is_empty() {
                     println!("  backup: {}", backup);
                 }
+            } else if let Some(err) = error {
+                println!("  error: {}", err);
+                // A per-agent error in --apply mode is a real failure.
+                // Dry-run errors (e.g. read parse failures) surface via
+                // the read_error field instead; the `error` key only
+                // appears when the write path actually ran.
+                if apply {
+                    failed_agents.push(agent.clone());
+                }
             } else if !reason.is_empty() {
                 println!("  skipped ({})", reason);
-            } else if let Some(err) = entry.get("error").and_then(|v| v.as_str()) {
-                println!("  error: {}", err);
             }
 
             if let Some(diff) = entry.get("diff") {
@@ -96,6 +106,12 @@ pub async fn sync_import(iii: &III, path: &str, apply: bool) -> Result<()> {
 
     if !apply {
         eprintln!("Dry run — pass --apply to write changes.");
+    } else if !failed_agents.is_empty() {
+        anyhow::bail!(
+            "sync failed for {} agent(s): {}",
+            failed_agents.len(),
+            failed_agents.join(", ")
+        );
     }
     Ok(())
 }

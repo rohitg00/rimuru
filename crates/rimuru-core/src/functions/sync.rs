@@ -266,7 +266,8 @@ fn read_servers_and_model(content: &Value, servers_key: &str, with_model: bool) 
 
 /// Shared write path: start from the existing object so unknown keys
 /// survive, overwrite mcpServers under `servers_key`, and optionally
-/// write the default model.
+/// write (or remove) the default model so import can converge on
+/// unsetting keys that canonical intentionally omits.
 fn write_servers_and_model(
     cfg: SyncConfig,
     existing: &Value,
@@ -275,8 +276,15 @@ fn write_servers_and_model(
 ) -> Value {
     let mut out = existing.as_object().cloned().unwrap_or_default();
     out.insert(servers_key.into(), render_mcp_servers(&cfg.mcp_servers));
-    if with_model && let Some(default_model) = cfg.model_preferences.get("default") {
-        out.insert("model".into(), Value::String(default_model.clone()));
+    if with_model {
+        match cfg.model_preferences.get("default") {
+            Some(default_model) => {
+                out.insert("model".into(), Value::String(default_model.clone()));
+            }
+            None => {
+                out.remove("model");
+            }
+        }
     }
     Value::Object(out)
 }
@@ -315,8 +323,17 @@ fn write_claude_code(cfg: SyncConfig, existing: &Value) -> Value {
     perms.insert("deny".into(), to_json_str_array(&cfg.denied_tools));
     out.insert("permissions".into(), Value::Object(perms));
 
-    if let Some(instructions) = cfg.custom_instructions {
-        out.insert("customInstructions".into(), Value::String(instructions));
+    // Mirror the write-or-remove rule from write_servers_and_model:
+    // canonical that omits customInstructions means "clear this key",
+    // not "leave it alone". Without the remove branch import cannot
+    // converge on unsetting the field.
+    match cfg.custom_instructions {
+        Some(instructions) => {
+            out.insert("customInstructions".into(), Value::String(instructions));
+        }
+        None => {
+            out.remove("customInstructions");
+        }
     }
     Value::Object(out)
 }
@@ -630,26 +647,46 @@ fn register_import(iii: &III, _kv: &StateKV) {
 
             let mut results = serde_json::Map::new();
 
+            // Tri-state load result that feeds the write gate below.
+            enum LoadState {
+                /// File existed and parsed — safe to overwrite (with backup).
+                Present(Value),
+                /// Agent not installed (file absent, dir may or may not exist).
+                NotInstalled,
+                /// Read or parse failure — refuse to write to avoid
+                /// clobbering a malformed-but-existing config.
+                Failed(String),
+            }
+
             for agent in agent_table() {
-                // Read errors during import match export's behavior:
-                // log a warning, surface the error in the per-agent
-                // result, and treat the file as empty so the write
-                // path still runs (which will create a fresh file
-                // and produce a useful diff for the dry-run).
-                let (existing, read_error): (Value, Option<String>) =
-                    match load_config_file(&agent.config_file) {
-                        Ok(Some(v)) => (v, None),
-                        Ok(None) => (Value::Object(serde_json::Map::new()), None),
-                        Err(e) => {
-                            warn!(
-                                "import: read failed for {} at {}: {}",
-                                agent.name,
-                                agent.config_file.display(),
-                                e
-                            );
-                            (Value::Object(serde_json::Map::new()), Some(e))
-                        }
-                    };
+                let state = match load_config_file(&agent.config_file) {
+                    Ok(Some(v)) => LoadState::Present(v),
+                    Ok(None) => LoadState::NotInstalled,
+                    Err(e) => {
+                        warn!(
+                            "import: read failed for {} at {}: {}",
+                            agent.name,
+                            agent.config_file.display(),
+                            e
+                        );
+                        LoadState::Failed(e)
+                    }
+                };
+
+                // For dry-run and installed agents we still compute a
+                // diff (from an empty config when the file is absent,
+                // from the real content when it parsed). On a hard
+                // read failure we skip the diff entirely — the user
+                // can rerun after fixing the malformed file.
+                let (existing, installed, read_error) = match &state {
+                    LoadState::Present(v) => (v.clone(), true, None),
+                    LoadState::NotInstalled => (Value::Object(serde_json::Map::new()), false, None),
+                    LoadState::Failed(e) => (
+                        Value::Object(serde_json::Map::new()),
+                        false,
+                        Some(e.clone()),
+                    ),
+                };
 
                 let current_cfg = (agent.read)(&existing);
                 let diff = diff_configs(&current_cfg, &canonical);
@@ -660,10 +697,26 @@ fn register_import(iii: &III, _kv: &StateKV) {
                     "diff": diff,
                 });
                 if let Some(err) = read_error {
-                    entry["read_error"] = Value::String(err);
+                    entry["read_error"] = Value::String(err.clone());
                 }
 
-                if apply && agent.config_file.parent().is_some_and(|p| p.exists()) {
+                // Write gate: apply mode + installed agent only.
+                // Refusing to write on failed reads prevents the
+                // synthetic-empty-config from clobbering a malformed
+                // real file. NotInstalled still writes in apply mode
+                // because bootstrapping a fresh config from an empty
+                // base is the documented behavior.
+                if !apply {
+                    entry["applied"] = Value::Bool(false);
+                    entry["reason"] = Value::String("dry_run".into());
+                } else if matches!(state, LoadState::Failed(_)) {
+                    entry["applied"] = Value::Bool(false);
+                    entry["reason"] = Value::String("read_error".into());
+                } else if !installed && agent.config_file.parent().is_none_or(|p| !p.exists()) {
+                    // Agent directory doesn't exist at all: not installed.
+                    entry["applied"] = Value::Bool(false);
+                    entry["reason"] = Value::String("agent_not_installed".into());
+                } else {
                     match write_config_file(&agent.config_file, &new_value) {
                         Ok(backup) => {
                             entry["applied"] = Value::Bool(true);
@@ -675,13 +728,6 @@ fn register_import(iii: &III, _kv: &StateKV) {
                             entry["applied"] = Value::Bool(false);
                             entry["error"] = Value::String(e);
                         }
-                    }
-                } else {
-                    entry["applied"] = Value::Bool(false);
-                    if !apply {
-                        entry["reason"] = Value::String("dry_run".into());
-                    } else {
-                        entry["reason"] = Value::String("agent_not_installed".into());
                     }
                 }
 

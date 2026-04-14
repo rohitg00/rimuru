@@ -20,6 +20,7 @@ interface AgentDiff {
   mcp_servers: { added: string[]; removed: string[]; changed: string[] };
   allowed_tools: { added: string[]; removed: string[] };
   denied_tools: { added: string[]; removed: string[] };
+  model_preferences: { added: string[]; removed: string[]; changed: string[] };
   custom_instructions_changed: boolean;
 }
 
@@ -55,6 +56,7 @@ function emptyDiff(): AgentDiff {
     mcp_servers: { added: [], removed: [], changed: [] },
     allowed_tools: { added: [], removed: [] },
     denied_tools: { added: [], removed: [] },
+    model_preferences: { added: [], removed: [], changed: [] },
     custom_instructions_changed: false,
   };
 }
@@ -68,6 +70,9 @@ function diffCount(d: AgentDiff): number {
     d.allowed_tools.removed.length +
     d.denied_tools.added.length +
     d.denied_tools.removed.length +
+    d.model_preferences.added.length +
+    d.model_preferences.removed.length +
+    d.model_preferences.changed.length +
     (d.custom_instructions_changed ? 1 : 0)
   );
 }
@@ -120,6 +125,15 @@ function DiffCard({ agent, diff }: { agent: string; diff: AgentDiff }) {
           <DiffRow label="allow removed" items={diff.allowed_tools.removed} />
           <DiffRow label="deny added" items={diff.denied_tools.added} />
           <DiffRow label="deny removed" items={diff.denied_tools.removed} />
+          <DiffRow label="model added" items={diff.model_preferences.added} />
+          <DiffRow
+            label="model changed"
+            items={diff.model_preferences.changed}
+          />
+          <DiffRow
+            label="model removed"
+            items={diff.model_preferences.removed}
+          />
           {diff.custom_instructions_changed && (
             <div className="text-xs text-[var(--text-primary)] mt-1">
               custom instructions changed
@@ -134,6 +148,12 @@ function DiffCard({ agent, diff }: { agent: string; diff: AgentDiff }) {
 export default function ConfigSync() {
   const [canonical, setCanonical] = useState<SyncCanonical | null>(null);
   const [diffs, setDiffs] = useState<Record<string, AgentDiff>>({});
+  // Agent list comes from /sync/export.per_agent (only installed
+  // agents) unioned with export.errors (failed reads stay visible).
+  // Deriving from /sync/diff's response would render every supported
+  // adapter even on a clean machine, which misled the UI into showing
+  // "in sync" for agents that were never installed.
+  const [agentNames, setAgentNames] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -152,6 +172,14 @@ export default function ConfigSync() {
       setCanonical(exp.canonical);
       setDiffs(diff.diffs);
       setErrors(exp.errors);
+      setAgentNames(
+        [
+          ...new Set([
+            ...Object.keys(exp.per_agent),
+            ...Object.keys(exp.errors),
+          ]),
+        ].sort(),
+      );
     } catch (err) {
       setPageError(err instanceof Error ? err.message : "Failed to load sync state");
     } finally {
@@ -182,11 +210,15 @@ export default function ConfigSync() {
     }
   }
 
-  const agentNames = Object.keys(diffs).sort();
   const totalChanges = agentNames.reduce(
     (acc, name) => acc + diffCount(diffs[name] ?? emptyDiff()),
     0,
   );
+  // Block Sync-all whenever export reported a read error. The import
+  // handler's write gate (LoadState::Failed) refuses to write that
+  // specific agent, but disabling the button keeps the user from
+  // clicking through and wondering why the error entry was skipped.
+  const hasReadErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -247,15 +279,19 @@ export default function ConfigSync() {
               Sync all agents
             </p>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              {totalChanges === 0
-                ? "All agents already match. No changes to apply."
-                : `${totalChanges} change${totalChanges === 1 ? "" : "s"} across ${agentNames.length} agent${agentNames.length === 1 ? "" : "s"}. Backups are taken before write.`}
+              {hasReadErrors
+                ? "Resolve the read errors above before syncing — rimuru refuses to overwrite configs it couldn't read."
+                : totalChanges === 0
+                  ? "All agents already match. No changes to apply."
+                  : `${totalChanges} change${totalChanges === 1 ? "" : "s"} across ${agentNames.length} agent${agentNames.length === 1 ? "" : "s"}. Backups are taken before write.`}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setConfirmOpen(true)}
-            disabled={totalChanges === 0 || syncing || !canonical}
+            disabled={
+              totalChanges === 0 || syncing || !canonical || hasReadErrors
+            }
             className="px-4 py-2 text-sm font-medium rounded-lg bg-[var(--accent)] text-white disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Sync all
