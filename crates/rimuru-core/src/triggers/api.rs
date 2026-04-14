@@ -294,21 +294,21 @@ const ROUTES: &[Route] = &[
         path: "api/indexer/extract_symbol",
         function_id: "rimuru.indexer.extract_symbol",
     },
-    // Optimization recommendations
+    // Cross-agent config sync
     Route {
         method: "GET",
-        path: "api/optimize/recommendations",
-        function_id: "rimuru.optimize.recommendations",
+        path: "api/sync/export",
+        function_id: "rimuru.sync.export",
+    },
+    Route {
+        method: "GET",
+        path: "api/sync/diff",
+        function_id: "rimuru.sync.diff",
     },
     Route {
         method: "POST",
-        path: "api/optimize/apply",
-        function_id: "rimuru.optimize.apply",
-    },
-    Route {
-        method: "GET",
-        path: "api/optimize/applied",
-        function_id: "rimuru.optimize.applied",
+        path: "api/sync/import",
+        function_id: "rimuru.sync.import",
     },
     // Guard wrapper
     Route {
