@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::sysutil::{api_response, extract_input, kv_err};
+use super::webhook::{load_webhook_url, post_webhook};
 use crate::models::CostRecord;
 use crate::state::StateKV;
 
@@ -238,6 +239,29 @@ fn register_check(iii: &III, kv: &StateKV) {
                         .await
                     {
                         tracing::warn!("failed to dispatch {} event: {}", event_type, e);
+                    }
+
+                    if let Some(url) = load_webhook_url(&kv, "webhooks.budget_url").await {
+                        let percent = if monthly_limit > 0.0 {
+                            monthly_spent / monthly_limit * 100.0
+                        } else {
+                            0.0
+                        };
+                        let agent = input
+                            .get("agent_id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let webhook_payload = json!({
+                            "event": event_type,
+                            "level": status,
+                            "current_spend": monthly_spent,
+                            "limit": monthly_limit,
+                            "percent": percent,
+                            "agent": agent,
+                            "timestamp": Utc::now().to_rfc3339(),
+                        });
+                        post_webhook(&url, &webhook_payload).await;
                     }
                 }
 

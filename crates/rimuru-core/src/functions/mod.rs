@@ -3,6 +3,9 @@ pub mod budget;
 pub mod config;
 pub mod context;
 pub mod costs;
+#[cfg(feature = "email")]
+pub mod email;
+pub mod export;
 pub mod guard;
 pub mod hardware;
 pub mod health;
@@ -21,6 +24,7 @@ pub mod skillkit;
 pub mod sync;
 pub mod sysutil;
 pub mod team;
+pub mod webhook;
 
 use std::sync::Arc;
 
@@ -38,6 +42,9 @@ pub fn register_all(iii: &III, kv: &StateKV) {
     context::register(iii, kv);
     sessions::register(iii, kv);
     costs::register(iii, kv);
+    export::register(iii, kv);
+    #[cfg(feature = "email")]
+    email::register(iii, kv);
     guard::register(iii, kv);
     models::register(iii, kv);
     metrics::register(iii, kv);

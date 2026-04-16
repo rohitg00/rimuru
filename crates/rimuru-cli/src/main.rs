@@ -1,8 +1,10 @@
 mod commands;
 mod output;
 
+use std::path::PathBuf;
+
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use iii_sdk::{InitOptions, register_worker};
 use output::OutputFormat;
 
@@ -160,8 +162,53 @@ enum CostsAction {
         #[arg(long)]
         agent_id: Option<String>,
     },
-    #[command(about = "Export cost data")]
-    Export { path: String },
+    #[command(about = "Export cost data as CSV or JSON")]
+    Export {
+        #[arg(long, value_enum, default_value_t = ExportFormat::Csv)]
+        format: ExportFormat,
+        #[arg(long, value_enum, default_value_t = ExportPeriod::Monthly)]
+        period: ExportPeriod,
+        #[arg(long)]
+        from: Option<String>,
+        #[arg(long)]
+        to: Option<String>,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum ExportFormat {
+    Csv,
+    Json,
+}
+
+impl ExportFormat {
+    fn as_str(self) -> &'static str {
+        match self {
+            ExportFormat::Csv => "csv",
+            ExportFormat::Json => "json",
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum ExportPeriod {
+    Daily,
+    Weekly,
+    Monthly,
+    Custom,
+}
+
+impl ExportPeriod {
+    fn as_str(self) -> &'static str {
+        match self {
+            ExportPeriod::Daily => "daily",
+            ExportPeriod::Weekly => "weekly",
+            ExportPeriod::Monthly => "monthly",
+            ExportPeriod::Custom => "custom",
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -361,7 +408,23 @@ async fn main() -> Result<()> {
             CostsAction::Agent { agent_id } => {
                 commands::costs::agent(&iii, agent_id.as_deref(), format).await
             }
-            CostsAction::Export { path } => commands::costs::export(&iii, &path).await,
+            CostsAction::Export {
+                format: export_format,
+                period,
+                from,
+                to,
+                output,
+            } => {
+                commands::costs::export(
+                    &iii,
+                    export_format.as_str(),
+                    period.as_str(),
+                    from.as_deref(),
+                    to.as_deref(),
+                    output.as_deref(),
+                )
+                .await
+            }
         },
 
         Commands::Models { action } => match action {

@@ -24,11 +24,18 @@ tracing-subscriber.workspace = true
 async-trait.workspace = true
 dirs.workspace = true
 reqwest.workspace = true
+csv.workspace = true
 tree-sitter.workspace = true
 tree-sitter-rust.workspace = true
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
+lettre = { workspace = true, optional = true }
+
+[features]
+default = []
+email = ["dep:lettre"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+wiremock.workspace = true

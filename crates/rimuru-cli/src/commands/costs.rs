@@ -61,18 +61,48 @@ pub async fn agent(iii: &III, agent_id: Option<&str>, format: &OutputFormat) -> 
     Ok(())
 }
 
-pub async fn export(iii: &III, path: &str) -> Result<()> {
+pub async fn export(
+    iii: &III,
+    format: &str,
+    period: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    output: Option<&std::path::Path>,
+) -> Result<()> {
+    let mut payload = json!({
+        "format": format,
+        "period": period,
+    });
+    if let Some(f) = from {
+        payload["from"] = Value::String(f.to_string());
+    }
+    if let Some(t) = to {
+        payload["to"] = Value::String(t.to_string());
+    }
+
     let result = iii
         .trigger(TriggerRequest {
-            function_id: "rimuru.costs.summary".to_string(),
-            payload: json!({}),
+            function_id: "rimuru.costs.export".to_string(),
+            payload,
             action: None,
             timeout_ms: None,
         })
         .await?;
     let result = crate::output::unwrap_body(result);
-    let content = serde_json::to_string_pretty(&result)?;
-    std::fs::write(path, &content)?;
-    println!("Exported costs to {path}");
+    let body = result
+        .get("body")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    match output {
+        Some(path) => {
+            std::fs::write(path, &body)?;
+            println!("Exported costs to {}", path.display());
+        }
+        None => {
+            print!("{body}");
+        }
+    }
     Ok(())
 }
