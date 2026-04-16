@@ -326,6 +326,32 @@ const ROUTES: &[Route] = &[
         path: "api/sync/import",
         function_id: "rimuru.sync.import",
     },
+    // Team dashboard (JWT-gated in function handlers)
+    Route {
+        method: "POST",
+        path: "api/team/create",
+        function_id: "rimuru.team.create",
+    },
+    Route {
+        method: "POST",
+        path: "api/team/add_user",
+        function_id: "rimuru.team.add_user",
+    },
+    Route {
+        method: "GET",
+        path: "api/team/costs",
+        function_id: "rimuru.team.costs",
+    },
+    Route {
+        method: "POST",
+        path: "api/team/costs",
+        function_id: "rimuru.team.costs",
+    },
+    Route {
+        method: "GET",
+        path: "api/team/leaderboard",
+        function_id: "rimuru.team.leaderboard",
+    },
     // Guard wrapper
     Route {
         method: "GET",

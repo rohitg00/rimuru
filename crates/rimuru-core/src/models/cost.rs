@@ -21,6 +21,10 @@ pub struct CostRecord {
     pub total_cost: f64,
     pub recorded_at: DateTime<Utc>,
     pub metadata: serde_json::Value,
+    #[serde(default)]
+    pub user_id: Option<String>,
+    #[serde(default)]
+    pub team_id: Option<String>,
 }
 
 impl CostRecord {
@@ -51,6 +55,8 @@ impl CostRecord {
             total_cost: input_cost + output_cost,
             recorded_at: Utc::now(),
             metadata: serde_json::json!({}),
+            user_id: None,
+            team_id: None,
         }
     }
 }

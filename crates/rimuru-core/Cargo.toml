@@ -26,6 +26,9 @@ dirs.workspace = true
 reqwest.workspace = true
 tree-sitter.workspace = true
 tree-sitter-rust.workspace = true
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

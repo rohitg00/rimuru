@@ -1,0 +1,153 @@
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum JwtError {
+    #[error("malformed JWT")]
+    Malformed,
+    #[error("unsupported algorithm: {0}")]
+    UnsupportedAlg(String),
+    #[error("invalid signature")]
+    BadSignature,
+    #[error("token expired")]
+    Expired,
+    #[error("encoding: {0}")]
+    Encoding(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Claims {
+    #[serde(default)]
+    pub sub: Option<String>,
+    #[serde(default)]
+    pub user_id: Option<String>,
+    #[serde(default)]
+    pub team_id: Option<String>,
+    #[serde(default)]
+    pub exp: Option<i64>,
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, Value>,
+}
+
+impl Claims {
+    pub fn user(&self) -> Option<String> {
+        self.user_id.clone().or_else(|| self.sub.clone())
+    }
+}
+
+pub fn verify_hs256(token: &str, secret: &[u8]) -> Result<Claims, JwtError> {
+    let mut parts = token.split('.');
+    let header_b64 = parts.next().ok_or(JwtError::Malformed)?;
+    let payload_b64 = parts.next().ok_or(JwtError::Malformed)?;
+    let sig_b64 = parts.next().ok_or(JwtError::Malformed)?;
+    if parts.next().is_some() {
+        return Err(JwtError::Malformed);
+    }
+
+    let header_bytes = URL_SAFE_NO_PAD
+        .decode(header_b64)
+        .map_err(|e| JwtError::Encoding(e.to_string()))?;
+    let header: Value =
+        serde_json::from_slice(&header_bytes).map_err(|e| JwtError::Encoding(e.to_string()))?;
+    let alg = header
+        .get("alg")
+        .and_then(|v| v.as_str())
+        .ok_or(JwtError::Malformed)?;
+    if alg != "HS256" {
+        return Err(JwtError::UnsupportedAlg(alg.to_string()));
+    }
+
+    let signing_input = format!("{}.{}", header_b64, payload_b64);
+    let expected_sig = URL_SAFE_NO_PAD
+        .decode(sig_b64)
+        .map_err(|e| JwtError::Encoding(e.to_string()))?;
+
+    let mut mac = HmacSha256::new_from_slice(secret).map_err(|_| JwtError::BadSignature)?;
+    mac.update(signing_input.as_bytes());
+    mac.verify_slice(&expected_sig)
+        .map_err(|_| JwtError::BadSignature)?;
+
+    let payload_bytes = URL_SAFE_NO_PAD
+        .decode(payload_b64)
+        .map_err(|e| JwtError::Encoding(e.to_string()))?;
+    let claims: Claims =
+        serde_json::from_slice(&payload_bytes).map_err(|e| JwtError::Encoding(e.to_string()))?;
+
+    if let Some(exp) = claims.exp {
+        let now = chrono::Utc::now().timestamp();
+        if now >= exp {
+            return Err(JwtError::Expired);
+        }
+    }
+
+    Ok(claims)
+}
+
+pub fn encode_hs256(claims: &Claims, secret: &[u8]) -> Result<String, JwtError> {
+    let header = serde_json::json!({"alg": "HS256", "typ": "JWT"});
+    let header_b64 = URL_SAFE_NO_PAD.encode(
+        serde_json::to_vec(&header).map_err(|e| JwtError::Encoding(e.to_string()))?,
+    );
+    let payload_b64 = URL_SAFE_NO_PAD.encode(
+        serde_json::to_vec(claims).map_err(|e| JwtError::Encoding(e.to_string()))?,
+    );
+    let signing_input = format!("{}.{}", header_b64, payload_b64);
+    let mut mac = HmacSha256::new_from_slice(secret).map_err(|_| JwtError::BadSignature)?;
+    mac.update(signing_input.as_bytes());
+    let sig = mac.finalize().into_bytes();
+    let sig_b64 = URL_SAFE_NO_PAD.encode(sig);
+    Ok(format!("{}.{}", signing_input, sig_b64))
+}
+
+pub fn extract_bearer(headers: &Value) -> Option<String> {
+    let obj = headers.as_object()?;
+    for (k, v) in obj {
+        if k.eq_ignore_ascii_case("authorization") {
+            let s = v.as_str()?;
+            let trimmed = s.trim();
+            if let Some(rest) = trimmed.strip_prefix("Bearer ") {
+                return Some(rest.trim().to_string());
+            }
+            if let Some(rest) = trimmed.strip_prefix("bearer ") {
+                return Some(rest.trim().to_string());
+            }
+        }
+    }
+    None
+}
+
+pub fn allow_without_jwt() -> bool {
+    std::env::var("RIMURU_ALLOW_TEAM_WITHOUT_JWT")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+pub fn jwt_secret() -> Option<Vec<u8>> {
+    std::env::var("RIMURU_JWT_SECRET")
+        .ok()
+        .map(|s| s.into_bytes())
+}
+
+/// Enforce team-scoped auth on an incoming HTTP trigger input.
+/// Returns the verified claims (or `None` when local-dev bypass is enabled).
+pub fn authorize(input: &Value) -> Result<Option<Claims>, iii_sdk::IIIError> {
+    let headers = input.get("headers").cloned().unwrap_or(Value::Null);
+    let token = extract_bearer(&headers);
+
+    match (token, jwt_secret(), allow_without_jwt()) {
+        (Some(tok), Some(secret), _) => verify_hs256(&tok, &secret)
+            .map(Some)
+            .map_err(|e| iii_sdk::IIIError::Handler(format!("unauthorized: {}", e))),
+        (None, _, true) => Ok(None),
+        (Some(_), None, true) => Ok(None),
+        _ => Err(iii_sdk::IIIError::Handler(
+            "unauthorized: missing or invalid bearer token".to_string(),
+        )),
+    }
+}

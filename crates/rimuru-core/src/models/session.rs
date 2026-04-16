@@ -40,6 +40,10 @@ pub struct Session {
     pub model: Option<String>,
     pub messages: u64,
     pub metadata: serde_json::Value,
+    #[serde(default)]
+    pub user_id: Option<String>,
+    #[serde(default)]
+    pub team_id: Option<String>,
 }
 
 impl Session {
@@ -59,6 +63,8 @@ impl Session {
             model: None,
             messages: 0,
             metadata: serde_json::json!({}),
+            user_id: None,
+            team_id: None,
         }
     }
 

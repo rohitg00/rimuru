@@ -123,6 +123,14 @@ fn register_record(iii: &III, kv: &StateKV) {
                     record.cache_write_tokens = cache_write;
                 }
 
+                if let Some(user_id) = input.get("user_id").and_then(|v| v.as_str()) {
+                    record.user_id = Some(user_id.to_string());
+                }
+
+                if let Some(team_id) = input.get("team_id").and_then(|v| v.as_str()) {
+                    record.team_id = Some(team_id.to_string());
+                }
+
                 let check_result = kv
                     .iii()
                     .trigger(TriggerRequest {
