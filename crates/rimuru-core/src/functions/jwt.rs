@@ -17,19 +17,25 @@ pub enum JwtError {
     BadSignature,
     #[error("token expired")]
     Expired,
+    #[error("missing exp claim")]
+    MissingExp,
     #[error("encoding: {0}")]
     Encoding(String),
 }
 
+/// Minimum secret length in bytes for HS256. RFC 2104 recommends the HMAC key
+/// be at least as long as the hash output (SHA-256 = 32 bytes).
+pub const MIN_HS256_SECRET_BYTES: usize = 32;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sub: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub team_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exp: Option<i64>,
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Value>,
@@ -79,11 +85,10 @@ pub fn verify_hs256(token: &str, secret: &[u8]) -> Result<Claims, JwtError> {
     let claims: Claims =
         serde_json::from_slice(&payload_bytes).map_err(|e| JwtError::Encoding(e.to_string()))?;
 
-    if let Some(exp) = claims.exp {
-        let now = chrono::Utc::now().timestamp();
-        if now >= exp {
-            return Err(JwtError::Expired);
-        }
+    let exp = claims.exp.ok_or(JwtError::MissingExp)?;
+    let now = chrono::Utc::now().timestamp();
+    if now >= exp {
+        return Err(JwtError::Expired);
     }
 
     Ok(claims)
@@ -129,9 +134,19 @@ pub fn allow_without_jwt() -> bool {
 }
 
 pub fn jwt_secret() -> Option<Vec<u8>> {
-    std::env::var("RIMURU_JWT_SECRET")
-        .ok()
-        .map(|s| s.into_bytes())
+    let raw = std::env::var("RIMURU_JWT_SECRET").ok()?;
+    if raw.is_empty() {
+        tracing::warn!("RIMURU_JWT_SECRET is set but empty; ignoring");
+        return None;
+    }
+    if raw.len() < MIN_HS256_SECRET_BYTES {
+        tracing::warn!(
+            "RIMURU_JWT_SECRET is shorter than {} bytes; ignoring for HS256 safety",
+            MIN_HS256_SECRET_BYTES
+        );
+        return None;
+    }
+    Some(raw.into_bytes())
 }
 
 /// Enforce team-scoped auth on an incoming HTTP trigger input.
@@ -145,9 +160,79 @@ pub fn authorize(input: &Value) -> Result<Option<Claims>, iii_sdk::IIIError> {
             .map(Some)
             .map_err(|e| iii_sdk::IIIError::Handler(format!("unauthorized: {}", e))),
         (None, _, true) => Ok(None),
-        (Some(_), None, true) => Ok(None),
+        (Some(_), None, true) => {
+            tracing::warn!(
+                "RIMURU_ALLOW_TEAM_WITHOUT_JWT=1 bypassing presented bearer token (no RIMURU_JWT_SECRET configured); accepting as unauthenticated"
+            );
+            Ok(None)
+        }
         _ => Err(iii_sdk::IIIError::Handler(
             "unauthorized: missing or invalid bearer token".to_string(),
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_missing_exp() {
+        let secret = b"very-long-secret-key-of-at-least-32b";
+        let claims = Claims {
+            sub: Some("alice".into()),
+            user_id: None,
+            team_id: None,
+            exp: None,
+            extra: Default::default(),
+        };
+        let token = encode_hs256(&claims, secret).unwrap();
+        let result = verify_hs256(&token, secret);
+        assert!(matches!(result, Err(JwtError::MissingExp)));
+    }
+
+    #[test]
+    fn claims_omit_none_fields_on_serialize() {
+        let claims = Claims {
+            sub: None,
+            user_id: Some("alice".into()),
+            team_id: None,
+            exp: Some(123),
+            extra: Default::default(),
+        };
+        let s = serde_json::to_string(&claims).unwrap();
+        assert!(!s.contains("\"sub\""));
+        assert!(!s.contains("\"team_id\""));
+        assert!(s.contains("\"user_id\""));
+        assert!(s.contains("\"exp\""));
+    }
+
+    #[test]
+    fn jwt_secret_rejects_empty_and_short() {
+        // Use a unique var name per test to avoid clobbering real env.
+        // We serialize via a mutex because std::env is process-global.
+        use std::sync::Mutex;
+        static LOCK: Mutex<()> = Mutex::new(());
+        let _g = LOCK.lock().unwrap();
+
+        // SAFETY: set/remove env in a single-threaded critical section.
+        unsafe {
+            std::env::remove_var("RIMURU_JWT_SECRET");
+            assert!(jwt_secret().is_none());
+
+            std::env::set_var("RIMURU_JWT_SECRET", "");
+            assert!(jwt_secret().is_none());
+
+            std::env::set_var("RIMURU_JWT_SECRET", "too-short");
+            assert!(jwt_secret().is_none());
+
+            std::env::set_var(
+                "RIMURU_JWT_SECRET",
+                "this-is-a-sufficiently-long-hs256-key-xx",
+            );
+            assert!(jwt_secret().is_some());
+
+            std::env::remove_var("RIMURU_JWT_SECRET");
+        }
     }
 }

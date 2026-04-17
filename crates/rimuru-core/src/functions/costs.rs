@@ -53,6 +53,7 @@ fn register_record(iii: &III, kv: &StateKV) {
         move |input: Value| {
             let kv = kv.clone();
             async move {
+                let claims = super::jwt::authorize(&input)?;
                 let input = extract_input(input);
                 let agent_id_str = require_str(&input, "agent_id")?;
 
@@ -123,12 +124,44 @@ fn register_record(iii: &III, kv: &StateKV) {
                     record.cache_write_tokens = cache_write;
                 }
 
-                if let Some(user_id) = input.get("user_id").and_then(|v| v.as_str()) {
-                    record.user_id = Some(user_id.to_string());
-                }
+                // Security: on the public HTTP path we must never trust client-supplied
+                // identities. When a JWT is present, pin user_id/team_id to the claims
+                // and reject mismatches. When authorize() returns None (local-dev
+                // bypass), fall through to the legacy body-driven behavior.
+                let client_user = input.get("user_id").and_then(|v| v.as_str());
+                let client_team = input.get("team_id").and_then(|v| v.as_str());
 
-                if let Some(team_id) = input.get("team_id").and_then(|v| v.as_str()) {
-                    record.team_id = Some(team_id.to_string());
+                match claims {
+                    Some(c) => {
+                        let claim_user = c.user();
+                        if let (Some(cu), Some(bu)) = (claim_user.as_deref(), client_user)
+                            && cu != bu
+                        {
+                            return Err(iii_sdk::IIIError::Handler(
+                                "unauthorized: user_id does not match token claims".into(),
+                            ));
+                        }
+                        if let (Some(ct), Some(bt)) = (c.team_id.as_deref(), client_team)
+                            && ct != bt
+                        {
+                            return Err(iii_sdk::IIIError::Handler(
+                                "unauthorized: team_id does not match token claims".into(),
+                            ));
+                        }
+                        record.user_id = claim_user.or_else(|| client_user.map(String::from));
+                        record.team_id = c
+                            .team_id
+                            .clone()
+                            .or_else(|| client_team.map(String::from));
+                    }
+                    None => {
+                        if let Some(u) = client_user {
+                            record.user_id = Some(u.to_string());
+                        }
+                        if let Some(t) = client_team {
+                            record.team_id = Some(t.to_string());
+                        }
+                    }
                 }
 
                 let check_result = kv
