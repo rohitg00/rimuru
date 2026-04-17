@@ -117,9 +117,11 @@ function TeamSelector({
   const [draftName, setDraftName] = useState("");
 
   async function createTeam() {
+    const trimmedName = draftName.trim();
+    if (!trimmedName) return;
     try {
       const res = await apiPost<{ id: string; name: string }>("/team/create", {
-        name: draftName,
+        name: trimmedName,
       });
       setTeamId(res.id);
       localStorage.setItem("rimuru.team_id", res.id);
@@ -192,13 +194,16 @@ function AddUserForm({ teamId, onAdded, onError }: AddUserProps) {
   const [newDisplay, setNewDisplay] = useState("");
 
   async function addUser() {
+    const trimmedUser = newUser.trim();
+    const trimmedDisplay = newDisplay.trim();
+    if (!trimmedUser) return;
     try {
       await apiPost("/team/add_user", {
         team_id: teamId,
-        user_id: newUser,
-        display_name: newDisplay || undefined,
+        user_id: trimmedUser,
+        display_name: trimmedDisplay || undefined,
       });
-      onAdded(`Added ${newUser} to team`);
+      onAdded(`Added ${trimmedUser} to team`);
       setNewUser("");
       setNewDisplay("");
     } catch (err) {
@@ -251,12 +256,30 @@ function AddUserForm({ teamId, onAdded, onError }: AddUserProps) {
 }
 
 function LoadedTeam({ teamId }: { teamId: string }) {
-  const { data: agg } = useQuery<TeamCostAggregation>(
+  const { data: agg, error } = useQuery<TeamCostAggregation>(
     `/team/costs?team_id=${encodeURIComponent(teamId)}`,
     10000,
   );
 
-  const topSpender = useMemo(() => agg?.per_user[0], [agg]);
+  // Only treat the first entry as the "top spender" when their spend is
+  // strictly positive. Otherwise the card shows a spurious $0.00 winner.
+  const topSpender = useMemo(
+    () => agg?.per_user.find((u) => u.total_cost > 0),
+    [agg],
+  );
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-[var(--error)] bg-[var(--bg-secondary)] p-5">
+        <p className="text-sm font-semibold text-[var(--error)]">
+          Failed to load team data
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] mt-1 font-mono">
+          {error}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -278,7 +301,7 @@ function LoadedTeam({ teamId }: { teamId: string }) {
               ? (topSpender.display_name ?? topSpender.user_id)
               : "—"
           }
-          sub={topSpender ? formatCost(topSpender.total_cost) : "no data"}
+          sub={topSpender ? formatCost(topSpender.total_cost) : "no spend yet"}
         />
       </div>
 
