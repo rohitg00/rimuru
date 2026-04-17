@@ -128,6 +128,119 @@ const FIELDS: FieldDef[] = [
   },
 ];
 
+const NOTIFICATION_FIELDS: FieldDef[] = [
+  {
+    key: "notifications.budget_enabled" as keyof AppConfig,
+    label: "Budget notifications",
+    description:
+      "Show native notifications when budget thresholds are crossed (50%, 80%, 100%)",
+    type: "boolean",
+  },
+  {
+    key: "notifications.session_cost_enabled" as keyof AppConfig,
+    label: "Session cost milestones",
+    description:
+      "Notify when a session crosses a cost milestone (see threshold below)",
+    type: "boolean",
+  },
+  {
+    key: "notifications.runaway_enabled" as keyof AppConfig,
+    label: "Runaway loop alerts",
+    description: "Notify when an agent is detected in a runaway loop",
+    type: "boolean",
+  },
+  {
+    key: "notifications.optimization_enabled" as keyof AppConfig,
+    label: "Optimization opportunities",
+    description:
+      "Notify when rimuru detects a potential cost/token optimization",
+    type: "boolean",
+  },
+  {
+    key: "notifications.session_cost_threshold" as keyof AppConfig,
+    label: "Session cost threshold ($)",
+    description:
+      "Emit a session milestone notification each time cumulative cost crosses this value",
+    type: "number",
+    min: 0,
+    step: 0.5,
+  },
+];
+
+function renderField(
+  field: FieldDef,
+  form: Partial<AppConfig>,
+  updateField: (key: keyof AppConfig, value: unknown) => void,
+) {
+  const value = form[field.key];
+  return (
+    <div
+      key={String(field.key)}
+      className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]">
+            {field.label}
+          </label>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {field.description}
+          </p>
+        </div>
+        <div className="w-full sm:w-48 shrink-0">
+          {field.type === "boolean" ? (
+            <button
+              onClick={() => updateField(field.key, !(value as boolean))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                value
+                  ? "bg-[var(--accent)]"
+                  : "bg-[var(--bg-tertiary)] border border-[var(--border)]"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                  value ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          ) : field.type === "select" ? (
+            <select
+              value={String(value ?? "")}
+              onChange={(e) => updateField(field.key, e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+            >
+              {field.options?.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          ) : field.type === "number" ? (
+            <input
+              type="number"
+              value={value != null ? Number(value) : ""}
+              onChange={(e) =>
+                updateField(field.key, parseFloat(e.target.value) || 0)
+              }
+              min={field.min}
+              max={field.max}
+              step={field.step}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] font-mono"
+            />
+          ) : (
+            <input
+              type="text"
+              value={String(value ?? "")}
+              onChange={(e) => updateField(field.key, e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { data: config, refetch } = useQuery<AppConfig>("/config", 30000);
   const [form, setForm] = useState<Partial<AppConfig>>({});
@@ -195,76 +308,24 @@ export default function Settings() {
       )}
 
       <div className="space-y-1">
-        {FIELDS.map((field) => (
-          <div
-            key={field.key}
-            className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex-1">
-                <label className="text-sm font-medium text-[var(--text-primary)]">
-                  {field.label}
-                </label>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  {field.description}
-                </p>
-              </div>
-              <div className="w-full sm:w-48 shrink-0">
-                {field.type === "boolean" ? (
-                  <button
-                    onClick={() =>
-                      updateField(field.key, !(form[field.key] as boolean))
-                    }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form[field.key]
-                        ? "bg-[var(--accent)]"
-                        : "bg-[var(--bg-tertiary)] border border-[var(--border)]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                        form[field.key] ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                ) : field.type === "select" ? (
-                  <select
-                    value={String(form[field.key] ?? "")}
-                    onChange={(e) => updateField(field.key, e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                  >
-                    {field.options?.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                ) : field.type === "number" ? (
-                  <input
-                    type="number"
-                    value={
-                      form[field.key] != null ? Number(form[field.key]) : ""
-                    }
-                    onChange={(e) =>
-                      updateField(field.key, parseFloat(e.target.value) || 0)
-                    }
-                    min={field.min}
-                    max={field.max}
-                    step={field.step}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] font-mono"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={String(form[field.key] ?? "")}
-                    onChange={(e) => updateField(field.key, e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+        {FIELDS.map((field) => renderField(field, form, updateField))}
+      </div>
+
+      <div className="pt-6 mt-6 border-t border-[var(--border)]">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+            Notifications
+          </h3>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            Native OS notifications for budget, cost, runaway, and optimization
+            events
+          </p>
+        </div>
+        <div className="space-y-1">
+          {NOTIFICATION_FIELDS.map((field) =>
+            renderField(field, form, updateField),
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
