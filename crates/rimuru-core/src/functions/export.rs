@@ -43,8 +43,7 @@ pub fn register(iii: &III, kv: &StateKV) {
                     .transpose()?
                     .or(default_to);
 
-                let records: Vec<CostRecord> =
-                    kv.list("cost_records").await.map_err(kv_err)?;
+                let records: Vec<CostRecord> = kv.list("cost_records").await.map_err(kv_err)?;
 
                 let filtered: Vec<CostRecord> = records
                     .into_iter()
@@ -56,10 +55,7 @@ pub fn register(iii: &III, kv: &StateKV) {
                     "csv" => (render_csv(&filtered)?, "text/csv".to_string()),
                     "json" => (render_json(&filtered)?, "application/json".to_string()),
                     other => {
-                        return Err(IIIError::Handler(format!(
-                            "unsupported format: {}",
-                            other
-                        )));
+                        return Err(IIIError::Handler(format!("unsupported format: {}", other)));
                     }
                 };
 
@@ -106,10 +102,7 @@ fn period_window(period: &str) -> Result<TimeWindow, IIIError> {
             Ok((Some(start), Some(now)))
         }
         "custom" => Ok((None, None)),
-        other => Err(IIIError::Handler(format!(
-            "unsupported period: {}",
-            other
-        ))),
+        other => Err(IIIError::Handler(format!("unsupported period: {}", other))),
     }
 }
 

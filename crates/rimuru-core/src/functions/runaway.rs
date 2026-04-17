@@ -5,9 +5,9 @@ use uuid::Uuid;
 
 use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use super::webhook::{load_webhook_url, post_webhook};
-use chrono::Utc;
 use crate::models::{ContextBreakdown, Session, SessionStatus, TurnRecord};
 use crate::state::StateKV;
+use chrono::Utc;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RunawayPattern {
@@ -358,8 +358,7 @@ fn register_analyze(iii: &III, kv: &StateKV) {
                 if analysis.is_runaway
                     && let Some(url) = load_webhook_url(&kv, "webhooks.runaway_url").await
                 {
-                    let tool_count: usize =
-                        windowed.iter().map(|t| t.tool_calls.len()).sum();
+                    let tool_count: usize = windowed.iter().map(|t| t.tool_calls.len()).sum();
                     let payload = json!({
                         "event": "runaway_detected",
                         "agent": "",
@@ -420,9 +419,7 @@ fn register_scan(iii: &III, kv: &StateKV) {
 
                         let analysis = analyze_turns(session.id, turns, &cfg);
                         if analysis.is_runaway {
-                            if let Some(url) =
-                                load_webhook_url(&kv, "webhooks.runaway_url").await
-                            {
+                            if let Some(url) = load_webhook_url(&kv, "webhooks.runaway_url").await {
                                 let tool_count: usize =
                                     turns.iter().map(|t| t.tool_calls.len()).sum();
                                 let payload = json!({

@@ -39,13 +39,10 @@ pub fn register(iii: &III, kv: &StateKV) {
                     ));
                 }
 
-                let records: Vec<CostRecord> =
-                    kv.list("cost_records").await.map_err(kv_err)?;
+                let records: Vec<CostRecord> = kv.list("cost_records").await.map_err(kv_err)?;
                 let cutoff = Utc::now() - Duration::days(7);
-                let weekly: Vec<&CostRecord> = records
-                    .iter()
-                    .filter(|r| r.recorded_at >= cutoff)
-                    .collect();
+                let weekly: Vec<&CostRecord> =
+                    records.iter().filter(|r| r.recorded_at >= cutoff).collect();
 
                 let total_cost: f64 = weekly.iter().map(|r| r.total_cost).sum();
                 let total_input: u64 = weekly.iter().map(|r| r.input_tokens).sum();
