@@ -242,8 +242,7 @@ async fn fetch_tooltip(iii: &III) -> Result<String, String> {
         .date_naive()
         .and_hms_opt(0, 0, 0)
         .map(|dt| {
-            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(dt, chrono::Utc)
-                .to_rfc3339()
+            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(dt, chrono::Utc).to_rfc3339()
         });
 
     let result = iii

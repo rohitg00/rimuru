@@ -239,10 +239,7 @@ fn map_event_to_kind(
             } else {
                 monthly_spent
             };
-            let limit = payload
-                .get("limit")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
+            let limit = payload.get("limit").and_then(|v| v.as_f64()).unwrap_or(0.0);
             let percent = payload
                 .get("percent")
                 .and_then(|v| v.as_f64())
@@ -279,10 +276,7 @@ fn map_event_to_kind(
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let cost = payload
-                .get("cost")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
+            let cost = payload.get("cost").and_then(|v| v.as_f64()).unwrap_or(0.0);
             Some(NotificationKind::SessionCostMilestone(SessionCostCtx {
                 session_id,
                 cost,
