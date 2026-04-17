@@ -618,7 +618,7 @@ impl AgentAdapter for ClaudeCodeAdapter {
                 Err(e) => warn!("Failed to parse session at {}: {}", dir.display(), e),
             }
         }
-        sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        sessions.sort_by_key(|b| std::cmp::Reverse(b.started_at));
         Ok(sessions)
     }
 

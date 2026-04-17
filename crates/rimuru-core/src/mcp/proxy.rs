@@ -145,7 +145,7 @@ impl McpProxy {
             })
             .collect();
 
-        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        scored.sort_by_key(|b| std::cmp::Reverse(b.0));
         scored.into_iter().take(limit).map(|(_, t)| t).collect()
     }
 
@@ -370,7 +370,7 @@ impl McpProxy {
             }
         }
 
-        stats.sort_by(|a, b| b.1.call_count.cmp(&a.1.call_count));
+        stats.sort_by_key(|b| std::cmp::Reverse(b.1.call_count));
         stats
     }
 }

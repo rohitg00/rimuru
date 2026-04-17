@@ -474,12 +474,10 @@ fn register_configure(iii: &III, kv: &StateKV) {
                                     ));
                                 }
                             }
-                            "auto_scan_enabled" => {
-                                if !val.is_boolean() {
-                                    return Err(iii_sdk::IIIError::Handler(
-                                        "auto_scan_enabled must be a boolean".into(),
-                                    ));
-                                }
+                            "auto_scan_enabled" if !val.is_boolean() => {
+                                return Err(iii_sdk::IIIError::Handler(
+                                    "auto_scan_enabled must be a boolean".into(),
+                                ));
                             }
                             _ => {}
                         }

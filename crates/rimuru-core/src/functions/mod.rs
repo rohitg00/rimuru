@@ -8,6 +8,7 @@ pub mod hardware;
 pub mod health;
 pub mod hooks;
 pub mod indexer;
+pub mod jwt;
 pub mod mcp;
 pub mod mcp_proxy;
 pub mod metrics;
@@ -19,6 +20,7 @@ pub mod sessions;
 pub mod skillkit;
 pub mod sync;
 pub mod sysutil;
+pub mod team;
 
 use std::sync::Arc;
 
@@ -48,6 +50,7 @@ pub fn register_all(iii: &III, kv: &StateKV) {
     optimize::register(iii, kv);
     skillkit::register(iii, kv);
     sync::register(iii, kv);
+    team::register(iii, kv);
     health::register(iii, kv);
     config::register(iii, kv);
     hardware::register(iii, kv);

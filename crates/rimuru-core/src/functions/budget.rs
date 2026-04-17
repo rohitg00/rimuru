@@ -432,7 +432,7 @@ fn register_alerts(iii: &III, kv: &StateKV) {
 
                 let mut alerts: Vec<BudgetAlert> =
                     kv.list("budget_alerts").await.map_err(kv_err)?;
-                alerts.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                alerts.sort_by_key(|b| std::cmp::Reverse(b.timestamp.clone()));
                 let total = alerts.len();
                 alerts.truncate(limit);
 

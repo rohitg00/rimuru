@@ -30,7 +30,7 @@ fn register_dispatch(iii: &III, kv: &StateKV) {
                     .filter(|h| h.event_type == event_type)
                     .collect();
 
-                matching.sort_by(|a, b| b.priority.cmp(&a.priority));
+                matching.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
                 let mut results: Vec<Value> = Vec::new();
                 let mut errors: Vec<Value> = Vec::new();

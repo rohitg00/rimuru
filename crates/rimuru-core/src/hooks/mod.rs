@@ -49,7 +49,7 @@ impl HookRegistry {
         let mut map = self.handlers.write().unwrap_or_else(|e| e.into_inner());
         let entry = map.entry(event_type.to_string()).or_default();
         entry.push(handler);
-        entry.sort_by(|a, b| b.priority.cmp(&a.priority));
+        entry.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
         info!(
             "Registered hook handler '{}' for event '{}'",

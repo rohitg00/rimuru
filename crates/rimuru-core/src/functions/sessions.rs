@@ -152,7 +152,7 @@ fn register_history(iii: &III, kv: &StateKV) {
                     .filter(|s| agent_id.is_none_or(|id| s.agent_id == id))
                     .collect();
 
-                history.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+                history.sort_by_key(|b| std::cmp::Reverse(b.started_at));
 
                 let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(100) as usize;
 

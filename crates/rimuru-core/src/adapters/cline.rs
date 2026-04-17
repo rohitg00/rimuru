@@ -158,7 +158,7 @@ impl AgentAdapter for ClineAdapter {
                 Err(e) => warn!("Failed to parse Cline task {}: {}", dir.display(), e),
             }
         }
-        sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        sessions.sort_by_key(|b| std::cmp::Reverse(b.started_at));
         Ok(sessions)
     }
 
