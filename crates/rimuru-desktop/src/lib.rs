@@ -1,10 +1,17 @@
 mod commands;
 mod events;
+mod notifications;
 mod state;
 mod tray;
 mod window_state;
 
+use iii_sdk::RegisterFunctionMessage;
+use notifications::{
+    BudgetThresholdCtx, NotificationDispatcher, NotificationKind, NotificationPreferences,
+    OptimizationCtx, RunawayCtx, SessionCostCtx,
+};
 use rimuru_core::{DEFAULT_ENGINE_URL, RimuruWorker, StateKV};
+use serde_json::{Value, json};
 use state::AppState;
 use tauri::{Emitter, Manager};
 use tracing::info;
@@ -28,6 +35,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -54,10 +62,14 @@ pub fn run() {
             let iii = worker.iii().clone();
             let kv = StateKV::new(iii.clone());
 
-            let app_state = AppState::new(iii, kv.clone(), api_port);
+            let app_state = AppState::new(iii.clone(), kv.clone(), api_port);
             app.manage(app_state);
 
+            let dispatcher = NotificationDispatcher::new(app.handle().clone());
+            register_notification_dispatcher(&iii, &kv, dispatcher);
+
             let handle = app.handle().clone();
+            let iii_for_hooks = iii.clone();
 
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = worker.start().await {
@@ -66,10 +78,13 @@ pub fn run() {
                 }
                 info!("Worker started (API served by iii-http on engine port)");
 
+                register_notification_hooks(&iii_for_hooks).await;
+
                 let _ = handle.emit("worker-ready", serde_json::json!({"port": api_port}));
             });
 
             tray::setup_tray(app.handle())?;
+            tray::spawn_tooltip_updater(app.handle().clone(), iii.clone());
             window_state::restore_window_state(app.handle());
 
             Ok(())
@@ -129,4 +144,205 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+const DESKTOP_NOTIFY_FN: &str = "rimuru.desktop.notify";
+
+const NOTIFICATION_EVENT_TYPES: &[&str] = &[
+    "budget.warning",
+    "budget.exceeded",
+    "session.cost_milestone",
+    "runaway.detected",
+    "optimize.opportunity",
+];
+
+fn register_notification_dispatcher<R: tauri::Runtime>(
+    iii: &iii_sdk::III,
+    kv: &StateKV,
+    dispatcher: NotificationDispatcher<R>,
+) {
+    let kv = kv.clone();
+    iii.register_function_with(
+        RegisterFunctionMessage::with_id(DESKTOP_NOTIFY_FN.to_string()),
+        move |input: Value| {
+            let kv = kv.clone();
+            let dispatcher = dispatcher.clone();
+            async move {
+                let input = extract_input(&input);
+                let event_type = input
+                    .get("event_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let payload = input.get("payload").cloned().unwrap_or(json!({}));
+
+                let prefs = NotificationPreferences::load(&kv).await;
+
+                let kind = map_event_to_kind(&event_type, &payload, &prefs);
+
+                let mut dispatched = false;
+                let mut suppressed = false;
+
+                if let Some(kind) = kind {
+                    let enabled = match &kind {
+                        NotificationKind::BudgetThreshold { .. } => prefs.budget_enabled,
+                        NotificationKind::SessionCostMilestone(_) => prefs.session_cost_enabled,
+                        NotificationKind::RunawayDetected(_) => prefs.runaway_enabled,
+                        NotificationKind::OptimizationOpportunity(_) => prefs.optimization_enabled,
+                    };
+                    if enabled {
+                        if let Err(e) = dispatcher.dispatch(&kind) {
+                            tracing::warn!("notification dispatch failed: {}", e);
+                        } else {
+                            dispatched = true;
+                        }
+                    } else {
+                        suppressed = true;
+                    }
+                }
+
+                Ok(json!({
+                    "event_type": event_type,
+                    "dispatched": dispatched,
+                    "suppressed": suppressed,
+                }))
+            }
+        },
+    );
+}
+
+fn extract_input(input: &Value) -> Value {
+    input
+        .get("body")
+        .cloned()
+        .or_else(|| input.get("payload").cloned())
+        .unwrap_or_else(|| input.clone())
+}
+
+fn map_event_to_kind(
+    event_type: &str,
+    payload: &Value,
+    _prefs: &NotificationPreferences,
+) -> Option<NotificationKind> {
+    match event_type {
+        "budget.warning" | "budget.exceeded" => {
+            let monthly_spent = payload
+                .get("monthly_spent")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let daily_spent = payload
+                .get("daily_spent")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let current = if daily_spent > 0.0 {
+                daily_spent
+            } else {
+                monthly_spent
+            };
+            let limit = payload
+                .get("limit")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let percent = payload
+                .get("percent")
+                .and_then(|v| v.as_f64())
+                .unwrap_or_else(|| {
+                    if limit > 0.0 {
+                        current / limit * 100.0
+                    } else {
+                        0.0
+                    }
+                });
+            let level: u8 = if event_type == "budget.exceeded" || percent >= 100.0 {
+                100
+            } else if percent >= 80.0 {
+                80
+            } else {
+                50
+            };
+            Some(NotificationKind::BudgetThreshold {
+                level,
+                ctx: BudgetThresholdCtx {
+                    current,
+                    limit,
+                    percent,
+                    agent: payload
+                        .get("agent")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                },
+            })
+        }
+        "session.cost_milestone" => {
+            let session_id = payload
+                .get("session_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let cost = payload
+                .get("cost")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            Some(NotificationKind::SessionCostMilestone(SessionCostCtx {
+                session_id,
+                cost,
+            }))
+        }
+        "runaway.detected" => {
+            let session_id = payload
+                .get("session_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let agent = payload
+                .get("agent")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let tool_count = payload
+                .get("tool_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
+            Some(NotificationKind::RunawayDetected(RunawayCtx {
+                agent,
+                session_id,
+                tool_count,
+            }))
+        }
+        "optimize.opportunity" => {
+            let recommendation = payload
+                .get("recommendation")
+                .and_then(|v| v.as_str())
+                .unwrap_or("A new optimization opportunity was identified")
+                .to_string();
+            Some(NotificationKind::OptimizationOpportunity(OptimizationCtx {
+                recommendation,
+            }))
+        }
+        _ => None,
+    }
+}
+
+async fn register_notification_hooks(iii: &iii_sdk::III) {
+    for event_type in NOTIFICATION_EVENT_TYPES {
+        let res = iii
+            .trigger(iii_sdk::TriggerRequest {
+                function_id: "rimuru.hooks.register".to_string(),
+                payload: json!({
+                    "event_type": *event_type,
+                    "function_id": DESKTOP_NOTIFY_FN,
+                    "priority": 100,
+                }),
+                action: None,
+                timeout_ms: Some(5000),
+            })
+            .await;
+        if let Err(e) = res {
+            tracing::warn!(
+                "failed to register desktop notification hook for {}: {}",
+                event_type,
+                e
+            );
+        }
+    }
 }

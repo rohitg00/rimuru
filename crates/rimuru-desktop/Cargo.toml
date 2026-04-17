@@ -21,6 +21,7 @@ iii-sdk.workspace = true
 
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
 tauri-plugin-shell = "2"
 
 tokio = { version = "1", features = ["full"] }
