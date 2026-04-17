@@ -23,7 +23,7 @@
 //! `optimize_applied` so the UI can tag recommendations as actioned.
 
 use chrono::{DateTime, Utc};
-use iii_sdk::{III, RegisterFunctionMessage};
+use iii_sdk::{III, RegisterFunctionMessage, TriggerRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -257,6 +257,28 @@ fn register_recommendations(iii: &III, kv: &StateKV) {
 
                 let total_tokens: u64 = recs.iter().map(|r| r.estimated_savings_tokens).sum();
                 let total_dollars: f64 = recs.iter().map(|r| r.estimated_savings_dollars).sum();
+
+                if let Some(top) = recs.first()
+                    && top.estimated_savings_dollars > 0.0
+                    && let Err(e) = kv
+                        .iii()
+                        .trigger(TriggerRequest {
+                            function_id: "rimuru.hooks.dispatch".to_string(),
+                            payload: json!({
+                                "event_type": "optimize.opportunity",
+                                "payload": {
+                                    "recommendation": top.description,
+                                    "category": top.category,
+                                    "estimated_savings_dollars": top.estimated_savings_dollars,
+                                }
+                            }),
+                            action: None,
+                            timeout_ms: Some(5000),
+                        })
+                        .await
+                {
+                    tracing::warn!("failed to dispatch optimize.opportunity event: {}", e);
+                }
 
                 Ok(api_response(json!({
                     "recommendations": recs,

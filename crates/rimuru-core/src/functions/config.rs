@@ -47,7 +47,12 @@ fn default_config() -> Value {
         "budget_action": "alert",
         "auto_detect_agents": true,
         "auto_sync_models": true,
-        "model_sync_interval_hours": 24
+        "model_sync_interval_hours": 24,
+        "notifications.budget_enabled": true,
+        "notifications.session_cost_enabled": true,
+        "notifications.runaway_enabled": true,
+        "notifications.optimization_enabled": true,
+        "notifications.session_cost_threshold": 5.0
     })
 }
 
