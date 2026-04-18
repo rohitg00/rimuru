@@ -4,6 +4,20 @@ use serde_json::{Value, json};
 use super::sysutil::{api_response, extract_input, kv_err, require_str};
 use crate::state::StateKV;
 
+const REDACTED_KEYS: &[&str] = &["email.password"];
+
+fn is_redacted_key(key: &str) -> bool {
+    REDACTED_KEYS.contains(&key)
+}
+
+fn redact_value(v: Value) -> Value {
+    match v {
+        Value::String(s) if s.is_empty() => Value::String(String::new()),
+        Value::Null => Value::Null,
+        _ => Value::String("***".to_string()),
+    }
+}
+
 pub fn register(iii: &III, kv: &StateKV) {
     register_get(iii, kv);
     register_set(iii, kv);
@@ -55,11 +69,18 @@ fn register_get(iii: &III, kv: &StateKV) {
                         let default_val = defaults.get(k);
 
                         match value {
-                            Some(v) => Ok(api_response(json!({
-                                "key": k,
-                                "value": v,
-                                "source": "user"
-                            }))),
+                            Some(v) => {
+                                let out = if is_redacted_key(k) {
+                                    redact_value(v)
+                                } else {
+                                    v
+                                };
+                                Ok(api_response(json!({
+                                    "key": k,
+                                    "value": out,
+                                    "source": "user"
+                                })))
+                            }
                             None => match default_val {
                                 Some(d) => Ok(api_response(json!({
                                     "key": k,
@@ -86,7 +107,12 @@ fn register_get(iii: &III, kv: &StateKV) {
 
                             match stored {
                                 Some(v) => {
-                                    merged.insert(k.clone(), v);
+                                    let out = if is_redacted_key(k) {
+                                        redact_value(v)
+                                    } else {
+                                        v
+                                    };
+                                    merged.insert(k.clone(), out);
                                     sources.insert(k.clone(), json!("user"));
                                 }
                                 None => {
@@ -106,7 +132,12 @@ fn register_get(iii: &III, kv: &StateKV) {
                                 let val: Option<Value> =
                                     kv.get("config", &k).await.map_err(kv_err)?;
                                 if let Some(v) = val {
-                                    merged.insert(k.clone(), v);
+                                    let out = if is_redacted_key(&k) {
+                                        redact_value(v)
+                                    } else {
+                                        v
+                                    };
+                                    merged.insert(k.clone(), out);
                                     sources.insert(k, json!("user"));
                                 }
                             }

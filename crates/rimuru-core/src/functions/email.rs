@@ -29,7 +29,11 @@ pub fn register(iii: &III, kv: &StateKV) {
                 let host = get_str(&kv, "email.smtp_host", "").await;
                 let port = get_u64(&kv, "email.port", 587).await as u16;
                 let username = get_str(&kv, "email.username", "").await;
-                let password = get_str(&kv, "email.password", "").await;
+                // Prefer env var over KV-stored plaintext password.
+                let password = match std::env::var("RIMURU_SMTP_PASSWORD") {
+                    Ok(v) if !v.is_empty() => v,
+                    _ => get_str(&kv, "email.password", "").await,
+                };
                 let from = get_str(&kv, "email.from", "").await;
                 let to_list = get_list(&kv, "email.to").await;
 
@@ -80,17 +84,25 @@ pub fn register(iii: &III, kv: &StateKV) {
                     .body(body)
                     .map_err(|e| IIIError::Handler(format!("build email: {}", e)))?;
 
-                let mut mailer = SmtpTransport::relay(&host)
-                    .map_err(|e| IIIError::Handler(format!("smtp relay: {}", e)))?
-                    .port(port);
+                // Port 465 uses implicit TLS; 587 (and other) uses STARTTLS.
+                let mut mailer = if port == 465 {
+                    SmtpTransport::relay(&host)
+                        .map_err(|e| IIIError::Handler(format!("smtp relay: {}", e)))?
+                } else {
+                    SmtpTransport::starttls_relay(&host)
+                        .map_err(|e| IIIError::Handler(format!("smtp starttls: {}", e)))?
+                }
+                .port(port)
+                .timeout(Some(std::time::Duration::from_secs(30)));
 
                 if !username.is_empty() {
                     mailer = mailer.credentials(Credentials::new(username, password));
                 }
 
-                mailer
-                    .build()
-                    .send(&email)
+                let transport = mailer.build();
+                tokio::task::spawn_blocking(move || transport.send(&email))
+                    .await
+                    .map_err(|e| IIIError::Handler(format!("smtp join: {}", e)))?
                     .map_err(|e| IIIError::Handler(format!("smtp send: {}", e)))?;
 
                 Ok(api_response(json!({
