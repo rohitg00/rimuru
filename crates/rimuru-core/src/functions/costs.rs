@@ -250,6 +250,55 @@ fn register_record(iii: &III, kv: &StateKV) {
                 .await
                 .map_err(kv_err)?;
 
+                if let Some(session_id) = record.session_id {
+                    let session_key = session_id.to_string();
+                    let prev_total: f64 = kv
+                        .get::<f64>("session_cost", &session_key)
+                        .await
+                        .map_err(kv_err)?
+                        .unwrap_or(0.0);
+                    let new_total = prev_total + record.total_cost;
+                    kv.set("session_cost", &session_key, &new_total)
+                        .await
+                        .map_err(kv_err)?;
+
+                    let threshold_dollars = kv
+                        .get::<Value>("config", "notifications.session_cost_threshold")
+                        .await
+                        .map_err(kv_err)?
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(5.0);
+                    if threshold_dollars > 0.0 {
+                        let prev_band = (prev_total / threshold_dollars).floor() as i64;
+                        let new_band = (new_total / threshold_dollars).floor() as i64;
+                        if new_band > prev_band {
+                            let milestone = new_band as f64 * threshold_dollars;
+                            if let Err(e) = kv
+                                .iii()
+                                .trigger(TriggerRequest {
+                                    function_id: "rimuru.hooks.dispatch".to_string(),
+                                    payload: json!({
+                                        "event_type": "session.cost_milestone",
+                                        "payload": {
+                                            "session_id": session_key,
+                                            "cost": milestone,
+                                            "total": new_total,
+                                        }
+                                    }),
+                                    action: None,
+                                    timeout_ms: Some(5000),
+                                })
+                                .await
+                            {
+                                tracing::warn!(
+                                    "failed to dispatch session.cost_milestone event: {}",
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+
                 Ok(api_response(json!({
                     "record": record,
                     "recorded": true,

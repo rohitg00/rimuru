@@ -23,7 +23,7 @@
 //! `optimize_applied` so the UI can tag recommendations as actioned.
 
 use chrono::{DateTime, Utc};
-use iii_sdk::{III, RegisterFunctionMessage};
+use iii_sdk::{III, RegisterFunctionMessage, TriggerRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -257,6 +257,61 @@ fn register_recommendations(iii: &III, kv: &StateKV) {
 
                 let total_tokens: u64 = recs.iter().map(|r| r.estimated_savings_tokens).sum();
                 let total_dollars: f64 = recs.iter().map(|r| r.estimated_savings_dollars).sum();
+
+                if let Some(top) = recs.first()
+                    && top.estimated_savings_dollars > 0.0
+                {
+                    let key = format!("{}:{}", top.category, top.description);
+                    let cooldown_secs = kv
+                        .get::<Value>("config", "optimize.opportunity_cooldown_secs")
+                        .await
+                        .map_err(kv_err)?
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(3600);
+                    let now = Utc::now().timestamp();
+                    let last_key = kv
+                        .get::<String>("optimize", "last_notified_key")
+                        .await
+                        .map_err(kv_err)?
+                        .unwrap_or_default();
+                    let last_at = kv
+                        .get::<i64>("optimize", "last_notified_at")
+                        .await
+                        .map_err(kv_err)?
+                        .unwrap_or(0);
+                    let should_notify =
+                        last_key != key || now.saturating_sub(last_at) >= cooldown_secs;
+                    if should_notify {
+                        match kv
+                            .iii()
+                            .trigger(TriggerRequest {
+                                function_id: "rimuru.hooks.dispatch".to_string(),
+                                payload: json!({
+                                    "event_type": "optimize.opportunity",
+                                    "payload": {
+                                        "recommendation": top.description,
+                                        "category": top.category,
+                                        "estimated_savings_dollars": top.estimated_savings_dollars,
+                                    }
+                                }),
+                                action: None,
+                                timeout_ms: Some(5000),
+                            })
+                            .await
+                        {
+                            Ok(_) => {
+                                let _ = kv.set("optimize", "last_notified_key", &key).await;
+                                let _ = kv.set("optimize", "last_notified_at", &now).await;
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "failed to dispatch optimize.opportunity event: {}",
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
 
                 Ok(api_response(json!({
                     "recommendations": recs,

@@ -206,6 +206,11 @@ export interface AppConfig {
   max_metrics_entries: number;
   session_monitoring_enabled: boolean;
   currency: string;
+  "notifications.budget_enabled"?: boolean;
+  "notifications.session_cost_enabled"?: boolean;
+  "notifications.runaway_enabled"?: boolean;
+  "notifications.optimization_enabled"?: boolean;
+  "notifications.session_cost_threshold"?: number;
 }
 
 export function formatAgentType(agentType: string): string {

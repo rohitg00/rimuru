@@ -1,4 +1,4 @@
-use iii_sdk::{III, RegisterFunctionMessage};
+use iii_sdk::{III, RegisterFunctionMessage, TriggerRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -498,6 +498,54 @@ fn register_scan(iii: &III, kv: &StateKV) {
                         .partial_cmp(&a.severity)
                         .unwrap_or(std::cmp::Ordering::Equal)
                 });
+
+                for analysis in &flagged {
+                    let notified_key = format!("runaway_notified:{}", analysis.session_id);
+                    let prev_severity = kv
+                        .get::<f64>("runaway", &notified_key)
+                        .await
+                        .map_err(kv_err)?
+                        .unwrap_or(f64::NEG_INFINITY);
+                    if analysis.severity <= prev_severity {
+                        continue;
+                    }
+                    let agent = active
+                        .iter()
+                        .find(|s| s.id == analysis.session_id)
+                        .map(|s| format!("{:?}", s.agent_type))
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let tool_count: u32 = analysis
+                        .patterns
+                        .iter()
+                        .filter_map(|p| p.metadata.get("count").and_then(|v| v.as_u64()))
+                        .max()
+                        .unwrap_or(0) as u32;
+                    match kv
+                        .iii()
+                        .trigger(TriggerRequest {
+                            function_id: "rimuru.hooks.dispatch".to_string(),
+                            payload: json!({
+                                "event_type": "runaway.detected",
+                                "payload": {
+                                    "session_id": analysis.session_id.to_string(),
+                                    "agent": agent,
+                                    "tool_count": tool_count,
+                                    "severity": analysis.severity,
+                                }
+                            }),
+                            action: None,
+                            timeout_ms: Some(5000),
+                        })
+                        .await
+                    {
+                        Ok(_) => {
+                            let _ = kv.set("runaway", &notified_key, &analysis.severity).await;
+                        }
+                        Err(e) => {
+                            tracing::warn!("failed to dispatch runaway.detected event: {}", e);
+                        }
+                    }
+                }
 
                 Ok(api_response(json!({
                     "flagged": flagged,
