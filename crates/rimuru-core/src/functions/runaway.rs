@@ -77,6 +77,40 @@ async fn load_runaway_window(kv: &StateKV) -> usize {
     10
 }
 
+async fn load_runaway_cooldown_secs(kv: &StateKV) -> i64 {
+    if let Ok(Some(v)) = kv.get::<Value>("config", "runaway_cooldown_secs").await
+        && let Some(n) = v.as_i64()
+    {
+        return n.max(0);
+    }
+    300
+}
+
+async fn cooldown_should_fire(kv: &StateKV, session_id: &str, cooldown_secs: i64) -> bool {
+    if cooldown_secs <= 0 {
+        return true;
+    }
+    let key = format!("runaway.last_fired.{}", session_id);
+    let last: Option<Value> = kv.get("cooldowns", &key).await.ok().flatten();
+    let Some(last_ts) = last.and_then(|v| v.as_i64()) else {
+        return true;
+    };
+    let now = Utc::now().timestamp();
+    now - last_ts >= cooldown_secs
+}
+
+async fn cooldown_mark_fired(kv: &StateKV, session_id: &str) {
+    let key = format!("runaway.last_fired.{}", session_id);
+    let now = Utc::now().timestamp();
+    if let Err(e) = kv.set("cooldowns", &key, &json!(now)).await {
+        tracing::warn!(
+            "failed to record runaway cooldown for {}: {}",
+            session_id,
+            e
+        );
+    }
+}
+
 fn analyze_turns(session_id: Uuid, turns: &[TurnRecord], cfg: &RunawayConfig) -> RunawayAnalysis {
     let mut patterns: Vec<RunawayPattern> = Vec::new();
 
@@ -396,6 +430,8 @@ fn register_scan(iii: &III, kv: &StateKV) {
                     .unwrap_or(configured_window);
 
                 let cfg = load_runaway_config(&kv).await;
+                let cooldown_secs = load_runaway_cooldown_secs(&kv).await;
+                let webhook_url = load_webhook_url(&kv, "webhooks.runaway_url").await;
 
                 let sessions: Vec<Session> = kv.list("sessions").await.map_err(kv_err)?;
                 let active: Vec<&Session> = sessions
@@ -404,37 +440,56 @@ fn register_scan(iii: &III, kv: &StateKV) {
                     .collect();
 
                 let mut flagged: Vec<RunawayAnalysis> = Vec::new();
+                let mut dispatch_tasks: tokio::task::JoinSet<()> = tokio::task::JoinSet::new();
 
                 for session in &active {
                     let sid = session.id.to_string();
                     let breakdown: Option<ContextBreakdown> =
                         kv.get("context_breakdowns", &sid).await.map_err(kv_err)?;
 
-                    if let Some(b) = breakdown {
-                        let turns = if b.turns.len() > window {
-                            &b.turns[b.turns.len() - window..]
-                        } else {
-                            &b.turns
-                        };
+                    let Some(b) = breakdown else {
+                        continue;
+                    };
 
-                        let analysis = analyze_turns(session.id, turns, &cfg);
-                        if analysis.is_runaway {
-                            if let Some(url) = load_webhook_url(&kv, "webhooks.runaway_url").await {
-                                let tool_count: usize =
-                                    turns.iter().map(|t| t.tool_calls.len()).sum();
-                                let payload = json!({
-                                    "event": "runaway_detected",
-                                    "agent": "",
-                                    "session_id": session.id.to_string(),
-                                    "tool_count": tool_count,
-                                    "window_ms": 0,
-                                    "severity": analysis.severity,
-                                    "timestamp": Utc::now().to_rfc3339(),
-                                });
-                                post_webhook(&url, &payload).await;
-                            }
-                            flagged.push(analysis);
-                        }
+                    let turns = if b.turns.len() > window {
+                        &b.turns[b.turns.len() - window..]
+                    } else {
+                        &b.turns
+                    };
+
+                    let analysis = analyze_turns(session.id, turns, &cfg);
+                    if !analysis.is_runaway {
+                        continue;
+                    }
+
+                    if let Some(url) = webhook_url.as_ref()
+                        && cooldown_should_fire(&kv, &sid, cooldown_secs).await
+                    {
+                        cooldown_mark_fired(&kv, &sid).await;
+                        let tool_count: usize = turns.iter().map(|t| t.tool_calls.len()).sum();
+                        let payload = json!({
+                            "event": "runaway_detected",
+                            "agent": "",
+                            "session_id": sid,
+                            "tool_count": tool_count,
+                            "window_ms": 0,
+                            "severity": analysis.severity,
+                            "timestamp": Utc::now().to_rfc3339(),
+                        });
+                        let url = url.clone();
+                        let sid_for_log = sid.clone();
+                        dispatch_tasks.spawn(async move {
+                            post_webhook(&url, &payload).await;
+                            tracing::debug!("runaway webhook dispatched for {}", sid_for_log);
+                        });
+                    }
+
+                    flagged.push(analysis);
+                }
+
+                while let Some(res) = dispatch_tasks.join_next().await {
+                    if let Err(e) = res {
+                        tracing::warn!("runaway webhook task failed: {}", e);
                     }
                 }
 
