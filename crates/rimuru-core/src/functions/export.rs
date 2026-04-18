@@ -140,7 +140,7 @@ pub fn render_csv(records: &[CostRecord]) -> Result<String, IIIError> {
             r.output_tokens.to_string(),
             r.cache_read_tokens.to_string(),
             r.cache_write_tokens.to_string(),
-            format!("{:.6}", r.total_cost),
+            r.total_cost.to_string(),
             session_id,
             String::new(),
             String::new(),

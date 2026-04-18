@@ -64,21 +64,23 @@ pub fn mark_kv_err(e: impl std::fmt::Display) -> iii_sdk::IIIError {
 mod tests {
     use super::*;
     use serde_json::json;
-    use wiremock::matchers::{method, path};
+    use wiremock::matchers::{body_json, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
     async fn posts_json_body() {
         let server = MockServer::start().await;
+        let payload = json!({"event": "budget.exceeded", "level": "high"});
         Mock::given(method("POST"))
             .and(path("/hook"))
+            .and(body_json(payload.clone()))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&server)
             .await;
 
         let url = format!("{}/hook", server.uri());
-        post_webhook(&url, &json!({"event": "budget.exceeded", "level": "high"})).await;
+        post_webhook(&url, &payload).await;
     }
 
     #[tokio::test]
