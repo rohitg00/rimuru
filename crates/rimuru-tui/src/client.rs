@@ -16,6 +16,12 @@ impl ApiClient {
         }
     }
 
+    pub fn from_env() -> Self {
+        let base = std::env::var("RIMURU_API")
+            .unwrap_or_else(|_| "http://127.0.0.1:3111".to_string());
+        Self::new(&base)
+    }
+
     pub async fn get(&self, path: &str) -> Option<Value> {
         let url = format!("{}/api{}", self.base, path);
         self.client
